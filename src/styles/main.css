@@ -1,0 +1,531 @@
+/* ==========================================================================
+   The Field Notebook — lean first pass.
+   Contrast (on --paper #F3EEE1): ink ~13.5:1, graphite ~5.2:1, red-pen ~4.6:1
+   (verified by tests/contrast.test.ts).
+   Ink on --highlighter ~11:1. Red-pen is never placed on the highlighter.
+   ========================================================================== */
+
+:root {
+  --paper: #f3eee1;
+  --ink: #1b2430;
+  --graphite: #5b6470;
+  --rule-blue: #a9bdd1;
+  --red: #c8321e;
+  --highlighter: #f2d95c;
+
+  --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --hand: 'Caveat', 'Bradley Hand', cursive;
+
+  --rule: 1.75rem; /* ruled-line spacing == body line-height */
+  --margin: 9.5rem; /* left margin column */
+  --gutter: 2rem;
+  --pad: 1.5rem;
+  --measure: 40rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--paper);
+  /* Ruled lines: one 1px rule per line-height. Functional, not decorative. */
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(var(--rule) - 1px),
+    rgb(169 189 209 / 0.45) calc(var(--rule) - 1px)
+  );
+  background-size: 100% var(--rule);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  line-height: var(--rule);
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--ink);
+  text-decoration-color: var(--red);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: var(--red);
+}
+
+:focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--pad);
+  top: -4rem;
+  z-index: 10;
+  padding: 0.25rem 0.75rem;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+  color: var(--paper);
+}
+
+/* ---- Page + margin rule ------------------------------------------------ */
+
+.page {
+  position: relative;
+  max-width: calc(var(--margin) + var(--gutter) + var(--measure) + 2 * var(--pad));
+  padding: calc(var(--rule) * 2) var(--pad) calc(var(--rule) * 3);
+}
+
+.page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--pad) + var(--margin) + var(--gutter) / 2);
+  width: 1px;
+  background: var(--red);
+  opacity: 0.55;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: var(--margin) minmax(0, var(--measure));
+  column-gap: var(--gutter);
+}
+
+.margin {
+  text-align: right;
+}
+
+.body > :first-child {
+  margin-top: 0;
+}
+
+/* ---- Type -------------------------------------------------------------- */
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  line-height: var(--rule);
+}
+
+h2 {
+  margin: 0 0 var(--rule);
+  font-size: 1.5rem;
+}
+
+p {
+  margin: 0 0 var(--rule);
+}
+
+.date,
+.label-field,
+.tags,
+.count,
+.contact-key {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--graphite);
+  letter-spacing: 0.01em;
+}
+
+.date {
+  margin: 0;
+}
+
+/* Handwritten red margin notes. Keep to a handful on the page. */
+.note,
+.empty-message {
+  font-family: var(--hand);
+  font-weight: 500;
+  font-size: 1.375rem;
+  color: var(--red);
+}
+
+.note {
+  margin: 0;
+  line-height: var(--rule);
+  transform: rotate(-3deg);
+  transform-origin: right center;
+}
+
+section,
+header,
+footer {
+  margin-bottom: calc(var(--rule) * 2);
+}
+
+/* ---- Masthead: a notebook label --------------------------------------- */
+
+.label {
+  display: inline-block;
+  max-width: 100%;
+  padding: calc(var(--rule) / 2) 1.25rem;
+  border: 2px solid var(--ink);
+  outline: 1px solid var(--ink);
+  outline-offset: 3px;
+  background: var(--paper);
+}
+
+.label-field {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.6875rem;
+}
+
+.name {
+  margin: 0 0 calc(var(--rule) / 2);
+  font-size: clamp(2rem, 7vw, 2.75rem);
+  line-height: 1.2;
+}
+
+.pen-mark {
+  position: relative;
+  display: inline-block;
+}
+
+.pen-underline {
+  position: absolute;
+  left: -2%;
+  bottom: -0.45em;
+  width: 104%;
+  height: 0.5em;
+  overflow: visible;
+}
+
+.pen-underline path {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pen-underline path {
+    stroke-dashoffset: 1;
+    animation: pen-draw 900ms cubic-bezier(0.6, 0, 0.3, 1) 300ms forwards;
+  }
+}
+
+@keyframes pen-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.subject {
+  margin: 0;
+  font-style: italic;
+}
+
+.todo {
+  margin: calc(var(--rule) / 2) 0 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--red);
+}
+
+/* ---- Lens controls ----------------------------------------------------- */
+
+.lens-controls {
+  margin-bottom: var(--rule);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--rule);
+}
+
+.chip {
+  min-height: 2.75rem;
+  padding: 0.25rem 0.875rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--red);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: underline;
+  text-decoration-color: var(--red);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.search {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: calc(var(--rule) / 2);
+}
+
+.search label {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--graphite);
+}
+
+.search input {
+  width: 100%;
+  max-width: 24rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+}
+
+.search input::placeholder {
+  color: var(--graphite);
+  opacity: 1;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.count {
+  margin: 0;
+}
+
+.text-button {
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
+  border: 0;
+  background: none;
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.text-button:hover {
+  color: var(--ink);
+}
+
+/* ---- Entries: notebook pages, not cards -------------------------------- */
+
+.entry {
+  position: relative;
+  padding-bottom: var(--rule);
+  transition: opacity 200ms ease;
+}
+
+.entry + .entry {
+  border-top: 1px dashed var(--graphite);
+  padding-top: var(--rule);
+}
+
+.entry .note {
+  margin-top: 0.25rem;
+}
+
+.entry-title {
+  margin: 0 0 calc(var(--rule) / 2);
+  font-size: 1.25rem;
+}
+
+.entry-role {
+  display: block;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 1.0625rem;
+  color: var(--graphite);
+}
+
+.entry-summary {
+  margin-bottom: calc(var(--rule) / 2);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tags li::before {
+  content: '#';
+  color: var(--red);
+}
+
+.entry.is-match .entry-org {
+  text-decoration: underline;
+  text-decoration-color: var(--red);
+  text-decoration-thickness: 3px;
+  text-underline-offset: 5px;
+}
+
+/* Red-pen bracket in the gutter beside matching entries. */
+.entry.is-match .body::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--rule) * 0.75);
+  bottom: calc(var(--rule) * 0.75);
+  margin-left: calc(var(--gutter) / -2 - 0.6rem);
+  width: 0.4rem;
+  border: 2.5px solid var(--red);
+  border-right: 0;
+}
+
+.entry:first-child.is-match .body::before {
+  top: 0;
+}
+
+/* Intentionally below contrast: dimmed entries are aria-hidden + inert. */
+.entry.is-dimmed {
+  opacity: 0.35;
+}
+
+.empty .body {
+  padding: var(--rule) 0;
+}
+
+.empty-message {
+  margin-bottom: calc(var(--rule) / 2);
+  font-size: 1.625rem;
+}
+
+/* ---- Skills + contact -------------------------------------------------- */
+
+.skill-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0 1.5rem;
+  margin: 0;
+}
+
+.skill-list dt {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--graphite);
+}
+
+.skill-list dd {
+  margin: 0;
+}
+
+.contact-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contact-key {
+  display: inline-block;
+  min-width: 5.5rem;
+}
+
+.contact-list a {
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  font-size: 0.9375rem;
+  color: var(--graphite);
+}
+
+.footer a {
+  color: var(--graphite);
+}
+
+/* ---- Small screens: margin content stacks above the page --------------- */
+
+@media (max-width: 44rem) {
+  :root {
+    --pad: 1.25rem;
+    --gutter: 0;
+  }
+
+  .page {
+    padding-left: calc(var(--pad) + 0.75rem);
+  }
+
+  .page::before {
+    left: calc(var(--pad) - 0.25rem);
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .margin {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    text-align: left;
+  }
+
+  .margin:empty {
+    display: none;
+  }
+
+  .note {
+    transform: rotate(-2deg);
+    transform-origin: left center;
+  }
+
+  .entry.is-match .body::before {
+    display: none;
+  }
+
+  .skill-list {
+    grid-template-columns: 1fr;
+  }
+
+  .skill-list dd {
+    margin-bottom: calc(var(--rule) / 2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
