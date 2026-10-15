@@ -3,53 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Harshal Joshi · Field Notebook</title>
+    <title>Harshal Joshi · Cartridge</title>
     <meta
       name="description"
-      content="Harshal Joshi studies Mathematics + Computer Science at UIUC. Notes on data science, full-stack, leadership, and cloud work, filterable by lens."
+      content="Harshal Joshi studies Mathematics + Computer Science at UIUC. Stage select personal portfolio with retro handheld Cartridge theme and explorer progress."
     />
-    <meta name="theme-color" content="#F3EEE1" />
+    <meta name="theme-color" content="#C4D68A" />
     <meta name="color-scheme" content="light" />
     <link rel="icon" href="data:," />
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
-    <a class="skip-link" href="#work">Skip to entries</a>
+    <a class="skip-link" href="#work">Skip to stages</a>
+
+    <!-- Fixed HUD mount container -->
+    <div id="hud-root"></div>
 
     <div class="page">
-      <header class="row masthead">
-        <div class="margin">
-          <p class="date">Notebook 01</p>
+      <header class="title-screen">
+        <h1 class="name">Harshal Joshi</h1>
+        <p class="subject">Mathematics + Computer Science, UIUC</p>
+        <!-- TODO(harshal): replace with a one-line tagline in your own words. -->
+        <div>
+          <span class="tagline todo">TODO: one-line tagline</span>
         </div>
-        <div class="body">
-          <div class="label">
-            <p class="label-field">Name</p>
-            <h1 class="name">
-              <span class="pen-mark">
-                Harshal Joshi
-                <svg
-                  class="pen-underline"
-                  viewBox="0 0 300 16"
-                  preserveAspectRatio="none"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path d="M3 11 C 60 4, 130 14, 190 8 S 270 6, 297 10" pathLength="1" />
-                </svg>
-              </span>
-            </h1>
-            <p class="label-field">Subject</p>
-            <p class="subject">Mathematics + Computer Science, UIUC</p>
-            <!-- TODO(harshal): replace with a one-line tagline in your own words. -->
-            <p class="tagline todo">TODO: one-line tagline</p>
-          </div>
+        <div style="margin-top: 1.5rem">
+          <a class="press-start-btn" href="#work">PRESS START</a>
         </div>
       </header>
 
       <main>
         <section class="row about" aria-labelledby="about-heading">
           <div class="margin">
-            <p class="date">p. 1</p>
+            <p class="stage-col-num">0-1</p>
           </div>
           <div class="body">
             <h2 id="about-heading">About</h2>
@@ -59,8 +45,8 @@
               Scholar and a James Scholar.
             </p>
             <p>
-              These pages are my notes on what I have worked on so far. Use the lenses
-              below to filter them.
+              These stages document my technical expeditions and projects. Choose your
+              class or search below to filter the stages.
             </p>
           </div>
         </section>
@@ -68,10 +54,10 @@
         <section id="work" class="work" aria-labelledby="work-heading" tabindex="-1">
           <div class="row">
             <div class="margin">
-              <p class="date">p. 2</p>
+              <p class="stage-col-num">STAGE SELECT</p>
             </div>
             <div class="body">
-              <h2 id="work-heading">Entries</h2>
+              <h2 id="work-heading">Stages</h2>
             </div>
           </div>
           <div id="lenses-root"></div>
@@ -79,7 +65,7 @@
 
         <section class="row skills" aria-labelledby="skills-heading">
           <div class="margin">
-            <p class="date">p. 3</p>
+            <p class="stage-col-num">0-2</p>
           </div>
           <div class="body">
             <h2 id="skills-heading">Skills</h2>
@@ -94,9 +80,13 @@
           </div>
         </section>
 
-        <section class="row contact" aria-labelledby="contact-heading">
+        <section
+          id="contact-section"
+          class="row contact"
+          aria-labelledby="contact-heading"
+        >
           <div class="margin">
-            <p class="date">p. 4</p>
+            <p class="stage-col-num">0-3</p>
           </div>
           <div class="body">
             <h2 id="contact-heading">Contact</h2>
@@ -121,10 +111,12 @@
       </main>
 
       <footer class="row footer">
-        <div class="margin"></div>
+        <div class="margin">
+          <p class="stage-col-num">END</p>
+        </div>
         <div class="body">
           <p>
-            Built with Vite and TypeScript.
+            Built with Vite, TypeScript & Cartridge Theme.
             <a href="https://github.com/Hj-c0ding/Harshal-Nobe-Personal-Website"
               >Source on GitHub</a
             >.

@@ -11,8 +11,8 @@ const css = readFileSync(
 );
 
 function token(name: string): string {
-  const match = css.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`));
-  if (!match?.[1]) throw new Error(`Missing token --${name}`);
+  const match = css.match(new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`));
+  if (!match?.[1]) throw new Error(`Missing token --color-${name}`);
   return match[1];
 }
 
@@ -31,11 +31,11 @@ function contrast(a: string, b: string): number {
 
 // Every foreground/background pair that carries text on the site.
 const textPairs: [fg: string, bg: string][] = [
-  ['ink', 'paper'],
-  ['graphite', 'paper'],
-  ['red', 'paper'],
-  ['paper', 'ink'], // pressed chips, skip link
-  ['ink', 'highlighter'],
+  ['deepest', 'lightest'], // primary body text on light screen background
+  ['dark', 'lightest'], // secondary text/dates/labels on screen
+  ['accent', 'lightest'], // alert/achievement accent on screen
+  ['lightest', 'deepest'], // pressed chips, HUD text, badges
+  ['deepest', 'light'], // buttons, progress fill
 ];
 
 describe('WCAG AA contrast', () => {
