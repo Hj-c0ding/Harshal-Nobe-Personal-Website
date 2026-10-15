@@ -1,0 +1,17 @@
+/// <reference types="vitest/config" />
+import { defineConfig } from 'vite';
+
+// GitHub Pages serves project sites from /<repo-name>/. The deploy workflow
+// sets BASE_PATH from the repository name; locally we serve from "/".
+const base = process.env.BASE_PATH ?? '/';
+
+export default defineConfig({
+  base,
+  build: {
+    target: 'es2022',
+  },
+  test: {
+    environment: 'happy-dom',
+    include: ['tests/**/*.test.ts'],
+  },
+});
