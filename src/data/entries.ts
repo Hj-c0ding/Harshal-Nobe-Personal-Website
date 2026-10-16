@@ -20,7 +20,7 @@ export const entries: readonly Entry[] = [
     role: 'Data Science Intern',
     dates: 'Sep 2026 – present',
     summary:
-      'I pull CRMLS transaction data over FTP and build geographic spatial features from it. I train time-aware, rolling-window models with scikit-learn and XGBoost and serve property price predictions in a Streamlit app.',
+      'Currently, I pull CRMLS transaction data over FTP and build geographic spatial features from it. I am also training time-aware, rolling-window models with scikit-learn and XGBoost and serve property price predictions to be displayed in a Streamlit app.',
     tags: ['data'],
     note: 'current',
   },
@@ -30,7 +30,7 @@ export const entries: readonly Entry[] = [
     role: 'Research Intern',
     dates: 'Jan – May 2026',
     summary:
-      'I built a PyTorch prototype that lets a quadcopter hover and follow a figure-8. I worked in NumPy and Jupyter.',
+      'I built a PyTorch prototype with NumPy and Jupyter Notebook that lets a quadcopter hover and follow a figure-8 path.',
     tags: ['data'],
   },
   {
@@ -38,7 +38,7 @@ export const entries: readonly Entry[] = [
     title: 'Fynder',
     dates: 'Jan – Apr 2026',
     summary:
-      'I built a lost-and-found app for my school with Django and SQLite: image uploads, form validation, filtering, and tests for submissions, claims, moderation, and admin access. It placed 2nd at Illinois FBLA State.',
+      'I built a lost-and-found web app for my school with Django and SQLite and features include: image uploads, form validation, filtering, and tests for submissions, claims, moderation, and admin access. It placed 2nd at Illinois FBLA State.',
     tags: ['fullstack'],
     note: '2nd at state',
   },
@@ -57,7 +57,7 @@ export const entries: readonly Entry[] = [
     role: 'State Vice President & Central Area President',
     dates: 'Jan 2025 – Jul 2026',
     summary:
-      'I served 4,000+ state members, built toolkits for new chapters, and helped plan the 2026 State Leadership Conference. I ran Project Unlock workshops for 50+ first-generation immigrant students.',
+      'I served 4,000+ state members, built toolkits for new chapters, and helped plan the 2026 State Leadership Conference. I also ran Project Unlock workshops for 50+ first-generation immigrant students.',
     tags: ['leadership'],
   },
   {
@@ -66,7 +66,7 @@ export const entries: readonly Entry[] = [
     role: 'State President & Chapter Vice President',
     dates: 'May 2025 – Apr 2026',
     summary:
-      'I presided over 200+ members at the 2026 State Conference. I was State Champion in Debating Technological Issues, placed 2nd in Technology Bowl (Oral), and earned the TSA Achievement Program Gold Award.',
+      'I presided over 200+ members at the 2026 State Conference. Also, I was 2026 State Champion in Debating Technological Issues, placed 2nd in Technology Bowl (Oral), and earned the TSA Achievement Program Gold Award.',
     tags: ['leadership'],
     note: 'state champion',
   },
@@ -75,7 +75,7 @@ export const entries: readonly Entry[] = [
     title: 'AWS Certified Cloud Practitioner',
     // TODO(harshal): add the date the certification was earned.
     dates: 'Certification',
-    summary: 'I hold the AWS Certified Cloud Practitioner certification.',
+    summary: 'I am certified with the AWS Certified Cloud Practitioner certification.',
     tags: ['cloud'],
   },
 ];
