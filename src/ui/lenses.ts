@@ -14,8 +14,16 @@ import {
   type LensState,
 } from '../lib/lenses';
 
+export interface LensesCallbacks {
+  onStageExpand?: (stageId: string) => void;
+  onLensUse?: (lensId: string) => void;
+  onSearchUse?: () => void;
+}
+
 export interface LensesHandle {
   getState(): LensState;
+  isStageExpanded(stageId: string): boolean;
+  collapseAllStages(): void;
   destroy(): void;
 }
 
@@ -51,12 +59,17 @@ function buildControls(doc: Document): HTMLElement {
 
   return el(doc, 'div', { class: 'row lens-controls' }, [
     el(doc, 'div', { class: 'margin' }, [
-      el(doc, 'p', { class: 'note' }, ['pick a lens']),
+      el(doc, 'p', { class: 'note' }, ['Choose your class:']),
     ]),
     el(doc, 'div', { class: 'body' }, [
-      el(doc, 'div', { class: 'chips', role: 'group', 'aria-label': 'Lenses' }, chips),
+      el(
+        doc,
+        'div',
+        { class: 'chips', role: 'group', 'aria-label': 'Choose your class' },
+        chips,
+      ),
       el(doc, 'form', { class: 'search', role: 'search', id: 'lens-search-form' }, [
-        el(doc, 'label', { for: 'lens-search' }, ['Search entries']),
+        el(doc, 'label', { for: 'lens-search' }, ['Search stages']),
         el(doc, 'input', {
           id: 'lens-search',
           type: 'search',
@@ -80,38 +93,70 @@ function buildControls(doc: Document): HTMLElement {
   ]);
 }
 
-function buildEntry(doc: Document, entry: Entry): HTMLElement {
-  const marginChildren: HTMLElement[] = [el(doc, 'p', { class: 'date' }, [entry.dates])];
-  if (entry.note) marginChildren.push(el(doc, 'p', { class: 'note' }, [entry.note]));
+function buildStage(doc: Document, entry: Entry, index: number): HTMLElement {
+  const stageNum = `1-${index + 1}`;
+  const detailsId = `stage-details-${entry.id}`;
+  const toggleBtnId = `stage-toggle-${entry.id}`;
 
-  const heading = el(doc, 'h3', { class: 'entry-title' }, [
-    el(doc, 'span', { class: 'entry-org' }, [entry.title]),
+  const toggleBtn = el(
+    doc,
+    'button',
+    {
+      type: 'button',
+      class: 'stage-toggle-btn',
+      id: toggleBtnId,
+      'aria-expanded': 'false',
+      'aria-controls': detailsId,
+    },
+    [
+      el(doc, 'span', { class: 'stage-badge' }, [stageNum]),
+      el(doc, 'span', { class: 'stage-name' }, [entry.title]),
+      el(doc, 'span', { class: 'stage-arrow', 'aria-hidden': 'true' }, ['▶']),
+    ],
+  );
+
+  const headerRow = el(doc, 'div', { class: 'stage-header' }, [
+    toggleBtn,
+    entry.role ? el(doc, 'span', { class: 'stage-role' }, [entry.role]) : '',
   ]);
-  if (entry.role) {
-    heading.append(el(doc, 'span', { class: 'entry-role' }, [entry.role]));
-  }
+
+  const tagList = el(
+    doc,
+    'ul',
+    { class: 'tags', 'aria-label': 'Tags' },
+    entry.tags.map((tag) => el(doc, 'li', {}, [lensLabel(tag)])),
+  );
+
+  const detailsContainer = el(
+    doc,
+    'div',
+    {
+      class: 'stage-details',
+      id: detailsId,
+      hidden: '',
+    },
+    [
+      el(doc, 'p', { class: 'stage-dates' }, [`Date: ${entry.dates}`]),
+      entry.note ? el(doc, 'p', { class: 'stage-note' }, [`Note: ${entry.note}`]) : '',
+      el(doc, 'p', { class: 'entry-summary' }, [entry.summary]),
+      tagList,
+    ],
+  );
 
   return el(
     doc,
     'article',
     {
-      class: 'row entry',
+      class: 'row entry stage-row',
       id: `entry-${entry.id}`,
       'data-entry-id': entry.id,
       'data-tags': entry.tags.join(' '),
     },
     [
-      el(doc, 'div', { class: 'margin' }, marginChildren),
-      el(doc, 'div', { class: 'body' }, [
-        heading,
-        el(doc, 'p', { class: 'entry-summary' }, [entry.summary]),
-        el(
-          doc,
-          'ul',
-          { class: 'tags', 'aria-label': 'Tags' },
-          entry.tags.map((tag) => el(doc, 'li', {}, [lensLabel(tag)])),
-        ),
+      el(doc, 'div', { class: 'margin' }, [
+        el(doc, 'span', { class: 'stage-col-num' }, [stageNum]),
       ]),
+      el(doc, 'div', { class: 'body' }, [headerRow, detailsContainer]),
     ],
   );
 }
@@ -121,7 +166,7 @@ function buildEmpty(doc: Document): HTMLElement {
     el(doc, 'div', { class: 'margin' }),
     el(doc, 'div', { class: 'body' }, [
       el(doc, 'p', { class: 'empty-message' }, [
-        'Nothing on these pages matches that. Try a different lens or word.',
+        'Nothing on these stages matches that. Try a different class or search term.',
       ]),
       el(doc, 'button', { type: 'button', id: 'lens-clear', class: 'text-button' }, [
         'Clear lenses',
@@ -130,22 +175,19 @@ function buildEmpty(doc: Document): HTMLElement {
   ]);
 }
 
-/**
- * Renders the lens controls + entries into `root` and wires up behavior.
- * State lives in the URL hash so filtered views can be shared.
- */
 export function mountLenses(
   root: HTMLElement,
   entries: readonly Entry[],
   win: Window = window,
+  callbacks: LensesCallbacks = {},
 ): LensesHandle {
   const doc = root.ownerDocument;
   const controls = buildControls(doc);
   const list = el(
     doc,
     'div',
-    { class: 'entries', id: 'entries' },
-    entries.map((entry) => buildEntry(doc, entry)),
+    { class: 'entries stages-list', id: 'entries' },
+    entries.map((entry, idx) => buildStage(doc, entry, idx)),
   );
   const empty = buildEmpty(doc);
   root.replaceChildren(controls, list, empty);
@@ -157,11 +199,13 @@ export function mountLenses(
   const reset = controls.querySelector<HTMLButtonElement>('#lens-reset');
   const clear = empty.querySelector<HTMLButtonElement>('#lens-clear');
   const articles = Array.from(list.querySelectorAll<HTMLElement>('.entry'));
+
   if (!search || !form || !count || !reset || !clear) {
     throw new Error('Lenses markup is incomplete');
   }
 
   let state: LensState = parseHash(win.location.hash);
+  const expandedStages = new Set<string>();
 
   const writeHash = (): void => {
     const hash = serializeHash(state);
@@ -206,17 +250,18 @@ export function mountLenses(
 
   const activate = (chip: HTMLButtonElement): void => {
     const lens = chip.dataset.lens;
-    if (lens === 'all' || isLensId(lens))
+    if (lens === 'all' || isLensId(lens)) {
+      if (isLensId(lens) && callbacks.onLensUse) {
+        callbacks.onLensUse(lens);
+      }
       update(toggleLens(state, lens as LensId | 'all'));
+    }
   };
 
   const onChipClick = (event: Event): void => {
     activate(event.currentTarget as HTMLButtonElement);
   };
 
-  // Native buttons already activate on Enter/Space; we handle the keys
-  // explicitly (and cancel the default) so activation fires exactly once and
-  // behaves the same in every environment, including tests.
   const onChipKeydown = (event: KeyboardEvent): void => {
     if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
       event.preventDefault();
@@ -227,7 +272,12 @@ export function mountLenses(
     if (event.key === ' ' || event.key === 'Spacebar') event.preventDefault();
   };
 
-  const onInput = (): void => update({ ...state, query: search.value });
+  const onInput = (): void => {
+    if (callbacks.onSearchUse && search.value.trim().length > 0) {
+      callbacks.onSearchUse();
+    }
+    update({ ...state, query: search.value });
+  };
   const onSubmit = (event: Event): void => event.preventDefault();
   const onReset = (): void => update({ ...DEFAULT_STATE });
   const onClear = (): void => {
@@ -238,6 +288,33 @@ export function mountLenses(
     state = parseHash(win.location.hash);
     render();
   };
+
+  // Wire stage accordion expands
+  for (const article of articles) {
+    const stageId = article.dataset.entryId;
+    const btn = article.querySelector<HTMLButtonElement>('.stage-toggle-btn');
+    const details = article.querySelector<HTMLElement>('.stage-details');
+    const arrow = article.querySelector<HTMLElement>('.stage-arrow');
+
+    if (btn && details && stageId) {
+      btn.addEventListener('click', () => {
+        const isExpanded = btn.getAttribute('aria-expanded') === 'true';
+        const nextExpanded = !isExpanded;
+        btn.setAttribute('aria-expanded', String(nextExpanded));
+        details.hidden = !nextExpanded;
+        if (arrow) arrow.textContent = nextExpanded ? '▼' : '▶';
+
+        if (nextExpanded) {
+          expandedStages.add(stageId);
+          if (callbacks.onStageExpand) {
+            callbacks.onStageExpand(stageId);
+          }
+        } else {
+          expandedStages.delete(stageId);
+        }
+      });
+    }
+  }
 
   for (const chip of chips) {
     chip.addEventListener('click', onChipClick);
@@ -254,6 +331,18 @@ export function mountLenses(
 
   return {
     getState: () => state,
+    isStageExpanded: (stageId: string) => expandedStages.has(stageId),
+    collapseAllStages: () => {
+      expandedStages.clear();
+      for (const article of articles) {
+        const btn = article.querySelector<HTMLButtonElement>('.stage-toggle-btn');
+        const details = article.querySelector<HTMLElement>('.stage-details');
+        const arrow = article.querySelector<HTMLElement>('.stage-arrow');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        if (details) details.hidden = true;
+        if (arrow) arrow.textContent = '▶';
+      }
+    },
     destroy: () => {
       win.removeEventListener('hashchange', onHashChange);
       root.replaceChildren();
