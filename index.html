@@ -14,17 +14,17 @@
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
-    <a class="skip-link" href="#reader-mode" id="skip-to-reader-link"
-      >Skip the game: read everything</a
-    >
+    <button type="button" class="skip-link" id="skip-to-reader-link" aria-pressed="false">
+      Skip the game: read everything
+    </button>
 
     <!-- Playable Canvas Game Root -->
     <div id="game-root"></div>
 
     <!-- Fixed HUD mount container for Reader Mode -->
-    <div id="hud-root"></div>
+    <div id="hud-root" hidden></div>
 
-    <div class="page" id="reader-mode">
+    <div class="page" id="reader-mode" hidden>
       <header class="title-screen">
         <h1 class="name">Harshal Joshi</h1>
         <p class="subject">Mathematics + Computer Science, UIUC</p>
@@ -32,8 +32,19 @@
         <div>
           <span class="tagline todo">TODO: one-line tagline</span>
         </div>
-        <div style="margin-top: 1.5rem">
+        <div
+          style="
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+          "
+        >
           <a class="press-start-btn" href="#work">PRESS START</a>
+          <button type="button" class="hud-btn reader-return-btn" id="reader-return-btn">
+            Return to game
+          </button>
         </div>
       </header>
 
@@ -86,6 +97,23 @@
         </section>
 
         <section
+          id="trophies-section"
+          class="row trophies"
+          aria-labelledby="trophies-heading"
+        >
+          <div class="margin">
+            <p class="stage-col-num">0-2b</p>
+          </div>
+          <div class="body">
+            <h2 id="trophies-heading">Trophies</h2>
+            <p class="trophies-summary">
+              <span id="reader-trophies-count">0</span> / 7 unlocked
+            </p>
+            <ul class="trophies-list" id="reader-trophies-list"></ul>
+          </div>
+        </section>
+
+        <section
           id="contact-section"
           class="row contact"
           aria-labelledby="contact-heading"
@@ -98,15 +126,28 @@
             <ul class="contact-list">
               <li>
                 <span class="contact-key">Email</span>
-                <a href="mailto:harshal5@illinois.edu">harshal5@illinois.edu</a>
+                <a
+                  href="mailto:harshal5@illinois.edu"
+                  class="contact-link"
+                  id="contact-email-link"
+                  >harshal5@illinois.edu</a
+                >
               </li>
               <li>
                 <span class="contact-key">GitHub</span>
-                <a href="https://github.com/Hj-c0ding">github.com/Hj-c0ding</a>
+                <a
+                  href="https://github.com/Hj-c0ding"
+                  class="contact-link"
+                  id="contact-github-link"
+                  >github.com/Hj-c0ding</a
+                >
               </li>
               <li>
                 <span class="contact-key">LinkedIn</span>
-                <a href="https://www.linkedin.com/in/harshal-joshi-54b3392a1"
+                <a
+                  href="https://www.linkedin.com/in/harshal-joshi-54b3392a1"
+                  class="contact-link"
+                  id="contact-linkedin-link"
                   >linkedin.com/in/harshal-joshi-54b3392a1</a
                 >
               </li>

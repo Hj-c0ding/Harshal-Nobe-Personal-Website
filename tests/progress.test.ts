@@ -9,16 +9,12 @@ import {
   INITIAL_PROGRESS_STATE,
   loadProgress,
   MAX_XP,
-  openContact,
   openMailbox,
-  openStage,
   saveProgress,
   serializeProgress,
   TOTAL_BUILDINGS,
   TOTAL_CLASSES,
   unlockKonami,
-  useLens,
-  useSearch,
   visitBuilding,
   XP_MAILBOX,
   XP_PER_BUILDING,
@@ -121,7 +117,6 @@ describe('Progress Engine Unit Tests', () => {
     expect(d1.xpGained).toBe(10);
     expect(d1.nextState.xp).toBe(10);
     expect(d1.nextState.mailboxOpened).toBe(true);
-    expect(d1.nextState.contactOpened).toBe(true);
 
     const d2 = openMailbox(d1.nextState);
     expect(d2.xpGained).toBe(0);
@@ -266,8 +261,6 @@ describe('Progress Engine Unit Tests', () => {
       chosenClasses: ['data'],
       usedLenses: ['data'],
       mailboxOpened: false,
-      contactOpened: false,
-      searchUsed: true,
       achievements: ['first-steps', 'data-nerd'],
     };
     const serialized = serializeProgress(state);
@@ -301,8 +294,6 @@ describe('Progress Engine Unit Tests', () => {
       chosenClasses: [],
       usedLenses: [],
       mailboxOpened: false,
-      contactOpened: false,
-      searchUsed: false,
       achievements: ['first-steps'],
     });
     expect(Number.isFinite(corrupted.xp)).toBe(true);
@@ -334,8 +325,6 @@ describe('Progress Engine Unit Tests', () => {
       chosenClasses: ['data'],
       usedLenses: ['data'],
       mailboxOpened: true,
-      contactOpened: true,
-      searchUsed: true,
       achievements: ['first-steps', 'data-nerd'],
     };
 
@@ -346,25 +335,21 @@ describe('Progress Engine Unit Tests', () => {
     expect(loadProgress(mockStorage)).toEqual(INITIAL_PROGRESS_STATE);
   });
 
-  it('reader mode aliases (openStage, useLens, openContact, useSearch) behave identically', () => {
-    const d1 = openStage(INITIAL_PROGRESS_STATE, 'fynder', allBuildings);
+  it('progress pure functions (visitBuilding, chooseClass, openMailbox) award correct XP and update flags', () => {
+    const d1 = visitBuilding(INITIAL_PROGRESS_STATE, 'fynder', allBuildings);
     expect(d1.xpGained).toBe(10);
     expect(d1.nextState.openedStages).toContain('fynder');
     expect(d1.nextState.visitedBuildings).toContain('fynder');
 
-    const d2 = useLens(d1.nextState, 'fullstack');
+    const d2 = chooseClass(d1.nextState, 'fullstack');
     expect(d2.xpGained).toBe(5);
     expect(d2.nextState.usedLenses).toContain('fullstack');
     expect(d2.nextState.chosenClasses).toContain('fullstack');
 
-    const d3 = openContact(d2.nextState);
+    const d3 = openMailbox(d2.nextState);
     expect(d3.xpGained).toBe(10);
-    expect(d3.nextState.contactOpened).toBe(true);
     expect(d3.nextState.mailboxOpened).toBe(true);
-
-    const d4 = useSearch(d3.nextState);
-    expect(d4.xpGained).toBe(0);
-    expect(d4.nextState.searchUsed).toBe(true);
+    expect(d3.nextState.xp).toBe(25);
   });
 
   it('deserializing save with stale 95 xp but all objectives completed heals to 100 xp and opens gate', () => {
@@ -421,10 +406,6 @@ describe('Progress Engine Unit Tests', () => {
     expect(d3Repeat.nextState.xp).toBe(computeXp(d3Repeat.nextState));
     state = d3Repeat.nextState;
 
-    const d4 = useSearch(state);
-    expect(d4.nextState.xp).toBe(computeXp(d4.nextState));
-    state = d4.nextState;
-
     const d5 = unlockKonami(state);
     expect(d5.nextState.xp).toBe(computeXp(d5.nextState));
   });
@@ -448,19 +429,11 @@ describe('Progress Engine Unit Tests', () => {
     expect(directMailbox.xpGained).toBe(10);
     expect(directMailbox.nextState.xp).toBe(10);
 
-    const directContact = openContact(INITIAL_PROGRESS_STATE);
-    expect(directContact.xpGained).toBe(10);
-    expect(directContact.nextState.xp).toBe(10);
-
     const store1 = createProgressStore();
     const dGame = store1.dispatch({ type: 'openMailbox' });
     expect(dGame.xpGained).toBe(10);
     expect(store1.getState().xp).toBe(10);
     expect(store1.getState().mailboxOpened).toBe(true);
-    expect(store1.getState().contactOpened).toBe(true);
-
-    const dReaderRepeat = openContact(store1.getState());
-    expect(dReaderRepeat.xpGained).toBe(0);
 
     const store2 = createProgressStore();
     const dReader = store2.dispatch({ type: 'openMailbox' });

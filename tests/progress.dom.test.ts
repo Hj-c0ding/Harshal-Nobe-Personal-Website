@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { entries } from '../src/data/entries';
-import { openStage, STORAGE_KEY } from '../src/lib/progress';
+import { visitBuilding, STORAGE_KEY } from '../src/lib/progress';
 import { mountHud, type HudHandle } from '../src/ui/hud';
 import { mountLenses, type LensesHandle } from '../src/ui/lenses';
 
@@ -23,7 +23,7 @@ function setupApp(storage: Storage = window.localStorage): void {
       if (!hudHandle) return;
       const cur = hudHandle.getState();
       const allIds = entries.map((e) => e.id);
-      hudHandle.applyDelta(openStage(cur, stageId, allIds));
+      hudHandle.applyDelta(visitBuilding(cur, stageId, allIds));
     },
   });
 }

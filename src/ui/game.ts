@@ -134,20 +134,18 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     </div>
   `;
 
-  // HOW TO PLAY card
-  const instructions = doc.createElement('aside');
+  // HOW TO PLAY card (native <details>, open by default)
+  const instructions = doc.createElement('details');
   instructions.className = 'game-instructions';
-  instructions.setAttribute('aria-label', 'How to Play Instructions');
+  instructions.open = true;
   instructions.innerHTML = `
-    <div class="instructions-header">
-      <h2 class="instructions-title">HOW TO PLAY</h2>
-    </div>
+    <summary class="instructions-title">HOW TO PLAY</summary>
     <ol class="instructions-list">
       <li><strong>1.</strong> Walk with arrow keys or WASD.</li>
       <li><strong>2.</strong> Stand next to a door and press E to enter.</li>
       <li><strong>3.</strong> Explore everything to reach 100 XP and open the gate.</li>
     </ol>
-    <p class="instructions-note">Nothing is locked. Prefer reading? Use <a href="#reader-mode" id="instructions-skip-link">Skip the game</a>.</p>
+    <p class="instructions-note">Nothing is locked. Prefer reading? <button type="button" class="instructions-skip-btn" id="instructions-skip-link">Skip the game</button>.</p>
   `;
 
   // Canvas Wrapper
@@ -188,8 +186,8 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
       <button type="button" class="dpad-btn dpad-down" data-dir="down" aria-label="Move Down">▼</button>
     </div>
     <div class="action-buttons-cluster" role="group" aria-label="Action Buttons">
-      <button type="button" class="action-btn action-b" id="game-btn-b" aria-label="Close / Cancel (B)">B</button>
-      <button type="button" class="action-btn action-a" id="game-btn-a" aria-label="Interact / Select (A)">A</button>
+      <button type="button" class="action-btn action-b" id="game-btn-b" aria-label="Close">B</button>
+      <button type="button" class="action-btn action-a" id="game-btn-a" aria-label="Interact">A</button>
     </div>
   `;
 
@@ -425,6 +423,23 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     .querySelector('#game-mailbox-close')
     ?.addEventListener('click', () => closeModal(mailboxDialog));
 
+  const onCancel = (d: HTMLDialogElement) => (e: Event) => {
+    e.preventDefault();
+    closeModal(d);
+  };
+  buildingDialog.addEventListener('cancel', onCancel(buildingDialog));
+  boardDialog.addEventListener('cancel', onCancel(boardDialog));
+  mailboxDialog.addEventListener('cancel', onCancel(mailboxDialog));
+  endingDialog.addEventListener('cancel', onCancel(endingDialog));
+  resetDialog.addEventListener('cancel', onCancel(resetDialog));
+
+  instructions
+    .querySelector('#instructions-skip-link')
+    ?.addEventListener('click', (e) => {
+      e.preventDefault();
+      doc.getElementById('skip-to-reader-link')?.click();
+    });
+
   // Dynamic Class Board Buttons
   const classPickerEl = boardDialog.querySelector('.dialog-class-picker');
   const classDefs: ReadonlyArray<{ id: LensId | 'all'; label: string }> = [
@@ -564,13 +579,17 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     }
   };
 
+  const prefersReducedMotion = (): boolean =>
+    typeof win.matchMedia === 'function' &&
+    win.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   // Movement execution
   const doMove = (dir: string): void => {
     if (activeDialog) return;
     const nextState = tryMove(worldState(), dir);
     if (nextState.x !== playerPos.x || nextState.y !== playerPos.y) {
       playerPos = { x: nextState.x, y: nextState.y };
-      walkFrame = (walkFrame + 1) % 2;
+      walkFrame = prefersReducedMotion() ? 0 : (walkFrame + 1) % 2;
 
       // Check if stepped into Gate tile (10, 1) when gate is open
       if (
@@ -616,14 +635,6 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
       return;
     }
 
-    if (activeDialog) return;
-
-    if (e.key === 'e' || e.key === 'E' || e.key === 'Enter') {
-      e.preventDefault();
-      interact();
-      return;
-    }
-
     const movementKeys = [
       'ArrowUp',
       'ArrowDown',
@@ -638,9 +649,35 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
       'd',
       'D',
     ];
+    const isMovement = movementKeys.includes(e.key);
+    const isSpace = e.key === ' ' || e.key === 'Space' || e.key === 'Spacebar';
 
-    if (movementKeys.includes(e.key)) {
+    const activeEl = doc.activeElement as HTMLElement | null;
+    const tag = activeEl ? activeEl.tagName.toLowerCase() : '';
+    const isInteractiveFocus =
+      tag === 'button' ||
+      tag === 'input' ||
+      tag === 'a' ||
+      tag === 'summary' ||
+      tag === 'textarea' ||
+      tag === 'select';
+
+    // preventDefault on arrow keys, WASD and Space ONLY when no dialog is open and focus is not in a button, input, link or summary. Tab navigation must keep working.
+    if (!activeDialog && !isInteractiveFocus && (isMovement || isSpace)) {
       e.preventDefault();
+    }
+
+    if (activeDialog) return;
+
+    if (e.key === 'e' || e.key === 'E' || e.key === 'Enter') {
+      if (!isInteractiveFocus || activeEl === canvas) {
+        e.preventDefault();
+        interact();
+      }
+      return;
+    }
+
+    if (isMovement && !isInteractiveFocus) {
       const now = Date.now();
       if (activeMoveKey !== e.key) {
         activeMoveKey = e.key;
@@ -979,9 +1016,10 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
       ctx.fillStyle = C_DARK;
       ctx.fillRect(px + 8, py + 26, 16, 4);
 
-      // Legs / Feet (toggled by walkFrame)
+      // Legs / Feet (toggled by walkFrame if not reduced motion)
+      const currentWalkFrame = prefersReducedMotion() ? 0 : walkFrame;
       ctx.fillStyle = C_DARKEST;
-      if (walkFrame === 0) {
+      if (currentWalkFrame === 0) {
         ctx.fillRect(px + 9, py + 22, 5, 8);
         ctx.fillRect(px + 18, py + 20, 5, 8);
       } else {

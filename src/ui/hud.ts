@@ -82,7 +82,7 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
   stats.className = 'hud-stats';
   stats.innerHTML = `
     <span class="hud-achievements" id="hud-achievements" title="Achievements unlocked">
-      ACHV: <strong id="hud-achievements-count">${state().achievements.length}/${ACHIEVEMENTS.length}</strong>
+      TROPHIES: <strong id="hud-achievements-count">${state().achievements.length}/${ACHIEVEMENTS.length}</strong>
     </span>
     <button type="button" class="hud-btn" id="hud-new-game-btn">New Game</button>
   `;
@@ -186,13 +186,17 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
   const unsubscribe = store.subscribe(onStoreChange);
 
   // Dialog handlers
+  let lastFocusedElement: HTMLElement | null = null;
+
   const openDialog = (): void => {
+    lastFocusedElement = (doc.activeElement as HTMLElement) ?? newGameBtn;
     if (typeof dialog.showModal === 'function') {
       dialog.showModal();
     } else {
       // Fallback for environments lacking HTMLDialogElement.prototype.showModal
       dialog.setAttribute('open', '');
     }
+    cancelBtn.focus();
   };
 
   const closeDialog = (): void => {
@@ -200,6 +204,9 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
       dialog.close();
     } else {
       dialog.removeAttribute('open');
+    }
+    if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+      lastFocusedElement.focus();
     }
   };
 
@@ -210,8 +217,27 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
     store.reset();
   };
 
+  const onDialogCancel = (e: Event): void => {
+    e.preventDefault();
+    closeDialog();
+  };
+
+  const onKeyDown = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') {
+      const isOpen =
+        dialog.hasAttribute('open') ||
+        ('open' in dialog && (dialog as HTMLDialogElement).open);
+      if (isOpen) {
+        e.preventDefault();
+        closeDialog();
+      }
+    }
+  };
+
   newGameBtn.addEventListener('click', openDialog);
   cancelBtn.addEventListener('click', closeDialog);
+  dialog.addEventListener('cancel', onDialogCancel);
+  win.addEventListener('keydown', onKeyDown);
   dialogForm.addEventListener('submit', onConfirmReset);
 
   renderHud();
@@ -225,6 +251,8 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
       if (toastTimer) clearTimeout(toastTimer);
       newGameBtn.removeEventListener('click', openDialog);
       cancelBtn.removeEventListener('click', closeDialog);
+      dialog.removeEventListener('cancel', onDialogCancel);
+      win.removeEventListener('keydown', onKeyDown);
       dialogForm.removeEventListener('submit', onConfirmReset);
       hud.remove();
       toastRegion.remove();

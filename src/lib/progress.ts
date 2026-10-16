@@ -80,9 +80,6 @@ export interface ProgressState {
   /** Alias for chosenClasses for reader mode compatibility */
   readonly usedLenses: readonly string[];
   readonly mailboxOpened: boolean;
-  /** Alias for mailboxOpened for reader mode compatibility */
-  readonly contactOpened: boolean;
-  readonly searchUsed: boolean;
   readonly achievements: readonly AchievementId[];
 }
 
@@ -93,8 +90,6 @@ export const INITIAL_PROGRESS_STATE: ProgressState = Object.freeze({
   chosenClasses: [],
   usedLenses: [],
   mailboxOpened: false,
-  contactOpened: false,
-  searchUsed: false,
   achievements: [],
 });
 
@@ -133,7 +128,6 @@ function normalizeState(
     chosenClasses,
     usedLenses: chosenClasses,
     mailboxOpened,
-    contactOpened: mailboxOpened,
     achievements,
     xp: computeXp({ visitedBuildings, chosenClasses, mailboxOpened }),
   };
@@ -234,12 +228,6 @@ export function visitBuilding(
 }
 
 /**
- * @deprecated Same function reference as visitBuilding (identical XP). App code
- * must dispatch through the progress store; kept only for API compatibility.
- */
-export const openStage = visitBuilding;
-
-/**
  * Chooses a class on the Class Board signpost (or lens).
  * Awards +5 XP on the first selection for each of the 4 classes (repeats = 0).
  * Unlocks class-specific achievements:
@@ -281,12 +269,6 @@ export function chooseClass(state: ProgressState, classId: string): ProgressDelt
 }
 
 /**
- * @deprecated Same function reference as chooseClass (identical XP). App code
- * must dispatch through the progress store; kept only for API compatibility.
- */
-export const useLens = chooseClass;
-
-/**
  * Opens the Mailbox (or contact info).
  * Awards +10 XP on the first interaction (repeats = 0).
  */
@@ -301,29 +283,6 @@ export function openMailbox(state: ProgressState): ProgressDelta {
   }
 
   return updateState(state, [], { mailboxOpened: true });
-}
-
-/**
- * @deprecated Same function reference as openMailbox (identical +10 once). Game
- * mailbox and reader-mode contact both dispatch openMailbox through the store.
- */
-export const openContact = openMailbox;
-
-/**
- * @deprecated Search never awards XP (it is not part of computeXp). Kept only so
- * old saves with searchUsed still load; the app no longer calls it.
- */
-export function useSearch(state: ProgressState): ProgressDelta {
-  if (state.searchUsed) {
-    return {
-      nextState: state,
-      xpGained: 0,
-      unlockedAchievements: [],
-      levelUp: null,
-    };
-  }
-
-  return updateState(state, [], { searchUsed: true });
 }
 
 export const KONAMI_CODE = [
@@ -401,7 +360,6 @@ export function deserializeProgress(raw: string | null): ProgressState {
     );
 
     const mailboxOpened = Boolean(parsed.mailboxOpened ?? parsed.contactOpened);
-    const searchUsed = Boolean(parsed.searchUsed);
 
     const achievements = Array.isArray(parsed.achievements)
       ? parsed.achievements.filter(
@@ -410,7 +368,7 @@ export function deserializeProgress(raw: string | null): ProgressState {
       : [];
 
     return normalizeState(
-      { ...INITIAL_PROGRESS_STATE, searchUsed },
+      INITIAL_PROGRESS_STATE,
       visitedBuildings,
       chosenClasses,
       mailboxOpened,
