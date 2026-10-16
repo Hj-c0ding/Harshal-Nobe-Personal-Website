@@ -1,117 +1,55 @@
 # Harshal Joshi · Cartridge
 
-My personal website, built as my NOBE capstone. It is styled with the **"Cartridge"**
-theme: a retro handheld-game screen with a fixed HUD, stage selection list, and an
-explorer progress gamification system.
+My personal website, built as my NOBE capstone. It features a playable top-down retro pixel campus game paired with an accessible reader mode, styled with the **"Cartridge"** theme: a retro handheld-game aesthetic with a fixed HUD, stage selection list, and an explorer progress gamification system.
 
 **Live site:** https://hj-c0ding.github.io/Harshal-Nobe-Personal-Website/
 
-## Design: "Cartridge" Theme
+## The game
 
-The site draws inspiration from retro handheld monochrome screens, executed with restraint
-so it feels designed and crisp rather than gimmicky:
-
-- **Palette**: Deepest `#0F380F`, Dark `#306230`, Light `#8BAC0F`, and Lightest `#C4D68A`
-  (page background). For alerts and achievements, an accent of `#A8231C` is used.
-  _(Note: adjusted from #B3261E to #A8231C to achieve 4.56:1 contrast against #C4D68A,
-  ensuring every text/background pair strictly meets WCAG AA ≥ 4.5:1)._
-- **Shapes**: Square corners only, stepped pixel borders, and non-blurred drop shadows
-  built with CSS `box-shadow`. No rounded corners, no gradients, and no glass effects.
-- **Typography**: Self-hosted via `@fontsource` with zero third-party network requests.
-  `Silkscreen` is used strictly for headings, stage labels, and HUD metrics;
-  `Atkinson Hyperlegible` is used for all readable body copy.
-- **Layout**: A fixed HUD bar at the top displaying player name, LV title, animated XP
-  bar, achievements tally, and a "New Game" reset trigger. The masthead features a title
-  screen with a blinking "PRESS START" button that jumps to stage select (respects
-  `prefers-reduced-motion`).
-- **Stage Select**: Each work entry is numbered as a stage (1-1, 1-2, etc.) and can be
-  interactively expanded or collapsed via native `<button aria-expanded="...">` controls.
-
-## Explorer Progress (Gamification)
-
-Gamification logic lives completely pure in `src/lib/progress.ts` (independent of DOM),
-while presentation lives in `src/ui/hud.ts`:
-
-- **XP Rules**:
-  - +10 XP for the **first** time a stage is expanded (7 stages × 10 = 70 XP).
-  - +5 XP for the **first** time each class lens is used (4 lenses × 5 = 20 XP).
-  - +5 XP for the **first** time the search box is used (5 XP).
-  - +5 XP for opening the contact section (5 XP).
-  - Total XP available in the system is exactly **100 XP** (70 + 20 + 5 + 5). Repeated actions grant 0 XP (no farming).
+- **Premise**: Walk an interactive top-down pixel campus where each building represents one of my professional experiences or technical projects. Stand outside any facility door and enter to read about the project, select class specializations at the campus class board, and open the campus mailbox to get in touch. Exploring every corner of campus unlocks achievements and opens the final gate at 100 XP.
+- **Controls**:
+  - **Move**: Arrow keys or WASD (also touch D-pad on mobile).
+  - **Interact / Enter**: `E` or `Enter` (or Action `A` button on touch).
+  - **Close Dialog**: `Escape` (or Action `B` button on touch).
+  - **Inputs**: Arrow keys, WASD, and Space are default-prevented during gameplay when focused on the game, but native tab navigation and form inputs remain fully functional.
+- **XP Table**:
+  - 7 buildings × 10 XP = 70 XP (first visit per building).
+  - 4 classes × 5 XP = 20 XP (first selection per class on the Class Board signpost or lens).
+  - 1 mailbox × 10 XP = 10 XP (first mailbox or contact interaction).
+  - **Total**: Exactly **100 XP**. Repeated interactions grant 0 XP (no farming).
 - **Levels**:
   - 0 XP: **Rookie**
   - 20 XP: **Scout**
   - 45 XP: **Builder**
   - 75 XP: **Engineer**
-  - 100 XP: **Maxed Out**
-- **Achievements**:
-  - _First Steps_: Open any stage.
-  - _Full-Stack Curious_: Use the Full-stack class lens.
-  - _Data Nerd_: Use the Data & ML class lens.
-  - _Leader of the Pack_: Use the Leadership class lens.
-  - _Cloud Watcher_: Use the Cloud class lens.
-  - _Completionist_: Open every stage.
-  - _Secret Handshake_: Konami code Easter egg (`↑ ↑ ↓ ↓ ← → ← → B A`).
-- **Persistence & Safety**:
-  - Automatically persisted in `localStorage` under key `cartridge-progress-v1`.
-  - Corrupt or invalid JSON, unknown achievement IDs, and quota/security errors fall back
-    cleanly to initial state without throwing. The game remains fully operational in-memory.
-- **Accessibility**:
-  - Feedback toasts are dispatched to an `aria-live="polite"` region.
-  - The XP progress bar uses `role="progressbar"` with `aria-valuenow`, `aria-valuemin`,
-    and `aria-valuemax`.
-  - "New Game" uses a native, keyboard-accessible `<dialog>` with focus trapping and ESC support.
-  - **Zero content gating**: all content, stages, notes, and skills are 100% accessible
-    and readable without earning any XP.
+  - 100 XP: **Maxed Out** (Final gate opens)
+- **Trophies (Achievements)**:
+  - _First Steps_: Enter any building.
+  - _Full-Stack Curious_: Choose the Full-stack class.
+  - _Data Nerd_: Choose the Data & ML class.
+  - _Leader of the Pack_: Choose the Leadership class.
+  - _Cloud Watcher_: Choose the Cloud class.
+  - _Completionist_: Explore all 7 buildings.
+  - _Secret Handshake_: Konami code entered (`↑ ↑ ↓ ↓ ← → ← → B A`).
+- **Reader Mode**:
+  - "Skip the game: read everything" is the very first tab stop on the page.
+  - Toggles a plain, semantic reader view (semantic stage list with expandable stage accordions, class filter lenses, live trophies list, contact) and back to the game.
+  - Actions in reader mode award XP through the exact same progress store: expanding a stage = `visitBuilding` (+10 once), choosing a lens = `chooseClass` (+5 once), and opening contact = `openMailbox` (+10 once).
+  - **Zero content gating**: everything is 100% accessible and readable without playing the game or earning XP.
 
-## Interactive Feature: "Choose your class" Lenses
+## Design
 
-Entries are tagged and filterable:
+The site uses the **"Cartridge"** theme, inspired by retro handheld monochrome green screens, executed with design discipline so it feels sharp, intentional, and readable rather than gimmicky:
 
-- Chips for **All**, **Data & ML**, **Full-stack**, **Leadership**, and **Cloud**.
-  Multiple lenses combine with **OR**. **All** clears the lens filter.
-- A search box narrows results in real time.
-- Matching stages are highlighted; non-matches are dimmed and marked `inert` with
-  `aria-hidden="true"`.
-- State syncs to URL hash (e.g. `#lens=data,leadership&q=django`) for link sharing.
-
-## Setup
-
-Requires **Node 20** (see `.nvmrc`) and npm.
-
-```bash
-git clone https://github.com/Hj-c0ding/Harshal-Nobe-Personal-Website.git
-cd Harshal-Nobe-Personal-Website
-npm ci
-npm run dev        # http://localhost:5173
-```
-
-| Script                 | What it does                                                    |
-| ---------------------- | --------------------------------------------------------------- |
-| `npm run dev`          | Vite dev server                                                 |
-| `npm run build`        | Production build into `dist/`                                   |
-| `npm run preview`      | Serve the built `dist/` locally                                 |
-| `npm run lint`         | ESLint (typescript-eslint strict)                               |
-| `npm run format:check` | Prettier check (`npm run format` to fix)                        |
-| `npm run typecheck`    | `tsc --noEmit` in strict mode                                   |
-| `npm test`             | Vitest (unit + happy-dom DOM tests)                             |
-| `npm run verify`       | All of the above in order: lint → format → types → test → build |
-
-## Testing
-
-```bash
-npm test           # run once
-npx vitest         # watch mode
-```
-
-- `tests/progress.test.ts`: pure engine unit tests (XP calculation, boundary thresholds,
-  no-farming rule, Konami code sequence validation, storage error recovery).
-- `tests/progress.dom.test.ts`: DOM tests in happy-dom (stage expand updating XP and
-  `aria-valuenow`, toast rendering into `aria-live`, New Game dialog cancellation and
-  resetting, reload persistence, and storage throwing resilience).
-- `tests/lenses.test.ts`: unit tests for pure lens filtering and URL hash sync.
-- `tests/lenses.dom.test.ts`: DOM tests for lens chips, search, and keyboard interaction.
-- `tests/contrast.test.ts`: automated WCAG AA (≥ 4.5:1) token verification against `src/styles/main.css`.
+- **Palette**: Deepest `#0F380F`, Dark `#306230`, Light `#8BAC0F`, and Lightest `#C4D68A` (page background). The CSS custom property `--color-accent` is `#A8231C` (adjusted from `#B3261E` for 4.56:1 contrast against `#C4D68A`), and it is used for text, outlines and buttons in the stylesheet. Canvas highlights are drawn shapes (not text) and still use the original `#B3261E`, so the text-contrast requirement does not apply to them.
+- **Shapes**: Square corners only (`border-radius: 0`), stepped pixel borders, and non-blurred drop shadows using pure CSS `box-shadow`. No gradients, no glassmorphism, no blurs.
+- **Typography**: Self-hosted via `@fontsource` with zero third-party network requests. `Silkscreen` is used strictly for headings, stage labels, and HUD metrics; `Atkinson Hyperlegible` provides clear, accessible body typography.
+- **Accessibility & Motion**:
+  - `aria-live="polite"` region announces interactable proximity ("Near <building name>. Press E to enter."), XP gains, level-ups, and trophy unlocks.
+  - Game canvas has `role="img"` and a descriptive `aria-label`.
+  - Native `<dialog>` elements manage focus trapping, close on `Escape`, and return focus to the trigger element on close.
+  - Full `prefers-reduced-motion` support: disables walking interpolation, disables blinking animations, and removes toast transitions.
+  - Canvas scales responsively to fit both width and height within `calc(100dvh - var(--hud-height) - margin)` with `image-rendering: pixelated`, keeping the full map visible on short viewports and touch controls visible on narrow screens.
 
 ## Architecture and decisions
 
@@ -120,27 +58,66 @@ src/
   lib/
     lenses.ts       pure filtering and hash logic
     progress.ts     pure gamification engine (XP, levels, achievements, storage)
+    store.ts        single source of truth progress store
+    world.ts        pure grid world math, collision, reachability, movement
   data/
-    entries.ts      content as typed data
+    entries.ts      portfolio stage entries as typed data
+    world.ts        ASCII map layout, building coordinates, doors, spawn
   ui/
+    game.ts         canvas game loop, input handling, modals, touch controls
     hud.ts          fixed HUD, progress bar, toast notifications, reset dialog
     lenses.ts       stage select accordion rendering and class controls
   styles/
     main.css        Cartridge theme custom properties, pixel borders, responsive layout
-  main.ts           entry point
+  main.ts           application bootstrap & view toggling
 tests/              unit, DOM, and contrast test suites
 ```
 
+Key architectural decisions:
+
+- **Pure logic in `src/lib/`**: All map collision, pathing, coordinates, progress rules, level calculations, and filter logic are pure functions decoupled from DOM and canvas rendering.
+- **Single progress store (`src/lib/store.ts`)**: There is exactly one state container for progress on the page. The canvas game, HUD, and reader mode all read and write through this single store; no duplicate or out-of-sync state exists.
+- **Derived XP from objective flags**: Stored XP is never trusted blindly from `localStorage`. XP is recomputed directly from objective flags (`visitedBuildings`, `chosenClasses`, `mailboxOpened`). This guarantees saves can heal automatically from any past state discrepancies.
+- **Map ASCII as single source of truth**: The map layout in `src/data/world.ts` defines all walkable tiles (`.`, `=`), obstacles (`#`, `T`, `~`), and building bounds, verified by automated reachability tests.
+
+## Testing
+
+The project has comprehensive test suites with unit, DOM, and accessibility tests:
+
+- **World logic & reachability**: `src/lib/world.test.ts` verifies map ASCII dimensions, boundary walls, door placements, interactable adjacency, collision bounds, and breadth-first search (BFS) reachability for all buildings and special tiles.
+- **Progress & store**: `tests/progress.test.ts` tests XP calculation pure functions, level thresholds, achievement unlocking, storage recovery, and healing of stale saves.
+- **Lenses & filtering**: `tests/lenses.test.ts` and `tests/lenses.dom.test.ts` test lens filters, search queries, keyboard accessibility, and URL hash serialization.
+- **DOM integration**:
+  - `tests/progress.dom.test.ts`: tests HUD progress rendering, polite aria-live toasts, and reset dialog.
+  - `tests/board.dom.test.ts`: tests Class Board signpost interaction, facility highlights, and 100 XP gate opening.
+  - `tests/world.dom.test.ts`: verifies skip link focusability and toggling, reader mode XP awards (+10 on stage expand, +5 on lens, +10 on contact), two-component HUD/game sync on reset and visit, key movement and dialog-aware default prevention, Escape dialog dismissal with focus return, storage throwing resilience, and final gate locking behavior.
+- **Contrast verification**: `tests/contrast.test.ts` computes luminance ratios for all theme color pairs directly against WCAG AA standards (≥ 4.5:1).
+
+Tests live in both `tests/` and `src/lib/` (colocated unit tests).
+
+## Setup and running
+
+Requires Node 20 (see `.nvmrc`) and npm:
+
+- `npm ci`: install exact dependencies
+- `npm run dev`: start Vite development server
+- `npm run build`: compile production build into `dist/`
+- `npm run preview`: serve production build locally
+
+## Tests and CI/CD
+
+- `npm test` runs Vitest; `npm run verify` runs lint, format:check, typecheck, tests and build in order.
+- `ci.yml` runs the `verify` job on every pull request to main; the ruleset requires a PR and the passing `verify` check.
+- `deploy.yml` re-runs verification on push to main, then deploys to GitHub Pages with Actions (Settings, Pages, Source: GitHub Actions).
+
 ## AI use and limitations
 
-**Claude Opus via Google Antigravity generated the initial scaffold and code**, and
-**Claude Opus via Antigravity generated the gamification and restyle**. I reviewed the
-output. Limitations to be honest about:
-
-- **Accessibility**: Screen reader behavior was tested through ARIA roles, polite live
-  regions, and automated contrast testing. **No dedicated manual screen-reader pass has
-  been completed yet.**
-- **Persistence Scope**: Explorer progress is saved to the browser's `localStorage` and is
-  therefore per-browser and local to that device.
-- Filtered-out entries are dimmed and marked with `inert` and `aria-hidden`. Sighted low-vision
-  users may find dimmed entries hard to read when a filter is applied (cleared via Reset or All).
+- **Initial scaffold**: Generated by Claude Opus via Google Antigravity.
+- **Cartridge restyle, game world, store refactor, and tests**: Implemented by Gemini via Google Antigravity.
+- **XP sync bugfix pass**: Refined by Claude Opus via Google Antigravity.
+- **Review**: All generated code, architecture decisions, and test suites were reviewed and verified by me.
+- **Limitations**:
+  - Screen reader behavior is audited through ARIA attributes, native semantic markup, and polite live regions; no dedicated manual screen-reader device test pass has been completed yet.
+  - Explorer progress is stored per-browser in local device `localStorage`.
+  - Canvas drawing pixels themselves are not unit tested (test suites verify pure game logic, coordinate math, and DOM wiring).
+  - No phone numbers or private personal data are published.
