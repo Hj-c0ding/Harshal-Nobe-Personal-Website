@@ -41,7 +41,7 @@ My personal website, built as my NOBE capstone. It features a playable top-down 
 
 The site uses the **"Cartridge"** theme, inspired by retro handheld monochrome green screens, executed with design discipline so it feels sharp, intentional, and readable rather than gimmicky:
 
-- **Palette**: Deepest `#0F380F`, Dark `#306230`, Light `#8BAC0F`, and Lightest `#C4D68A` (page background). For alerts, achievements, and mailbox accents, `#A8231C` is used (adjusted from `#B3261E` to guarantee 4.56:1 contrast against `#C4D68A`, ensuring every single text/background pair satisfies WCAG AA ≥ 4.5:1).
+- **Palette**: Deepest `#0F380F`, Dark `#306230`, Light `#8BAC0F`, and Lightest `#C4D68A` (page background). The CSS custom property `--color-accent` is `#A8231C` (adjusted from `#B3261E` for 4.56:1 contrast against `#C4D68A`), and it is used for text, outlines and buttons in the stylesheet. Canvas highlights are drawn shapes (not text) and still use the original `#B3261E`, so the text-contrast requirement does not apply to them.
 - **Shapes**: Square corners only (`border-radius: 0`), stepped pixel borders, and non-blurred drop shadows using pure CSS `box-shadow`. No gradients, no glassmorphism, no blurs.
 - **Typography**: Self-hosted via `@fontsource` with zero third-party network requests. `Silkscreen` is used strictly for headings, stage labels, and HUD metrics; `Atkinson Hyperlegible` provides clear, accessible body typography.
 - **Accessibility & Motion**:
