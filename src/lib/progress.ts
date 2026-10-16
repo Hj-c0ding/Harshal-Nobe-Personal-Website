@@ -13,7 +13,17 @@ export const LEVEL_THRESHOLDS: readonly LevelThreshold[] = [
   { level: 'Maxed Out', minXp: 100 },
 ] as const;
 
-export const MAX_XP = 100;
+export const TOTAL_BUILDINGS = 7;
+export const TOTAL_CLASSES = 4;
+export const XP_PER_BUILDING = 10;
+export const XP_PER_CLASS = 5;
+export const XP_MAILBOX = 10;
+
+/**
+ * Max XP is computed from data: 7 buildings x 10 + 4 classes x 5 + 1 mailbox x 10 = exactly 100.
+ */
+export const MAX_XP =
+  TOTAL_BUILDINGS * XP_PER_BUILDING + TOTAL_CLASSES * XP_PER_CLASS + XP_MAILBOX;
 
 export type AchievementId =
   | 'first-steps'
@@ -31,20 +41,20 @@ export interface Achievement {
 }
 
 export const ACHIEVEMENTS: readonly Achievement[] = [
-  { id: 'first-steps', name: 'First Steps', description: 'Open any stage' },
+  { id: 'first-steps', name: 'First Steps', description: 'Enter any building' },
   {
     id: 'full-stack-curious',
     name: 'Full-Stack Curious',
-    description: 'Use the Full-stack lens',
+    description: 'Choose the Full-stack class',
   },
-  { id: 'data-nerd', name: 'Data Nerd', description: 'Use the Data & ML lens' },
+  { id: 'data-nerd', name: 'Data Nerd', description: 'Choose the Data & ML class' },
   {
     id: 'leader-of-the-pack',
     name: 'Leader of the Pack',
-    description: 'Use the Leadership lens',
+    description: 'Choose the Leadership class',
   },
-  { id: 'completionist', name: 'Completionist', description: 'Open every stage' },
-  { id: 'cloud-watcher', name: 'Cloud Watcher', description: 'Use the Cloud lens' },
+  { id: 'completionist', name: 'Completionist', description: 'Explore all 7 buildings' },
+  { id: 'cloud-watcher', name: 'Cloud Watcher', description: 'Choose the Cloud class' },
   {
     id: 'secret-handshake',
     name: 'Secret Handshake',
@@ -54,21 +64,33 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
 
 export const ACHIEVEMENT_IDS = new Set<string>(ACHIEVEMENTS.map((a) => a.id));
 
+export const VALID_CLASSES = ['data', 'fullstack', 'leadership', 'cloud'] as const;
+export type ValidClassId = (typeof VALID_CLASSES)[number];
+
 export interface ProgressState {
   readonly xp: number;
+  readonly visitedBuildings: readonly string[];
+  /** Alias for visitedBuildings for reader mode compatibility */
   readonly openedStages: readonly string[];
+  readonly chosenClasses: readonly string[];
+  /** Alias for chosenClasses for reader mode compatibility */
   readonly usedLenses: readonly string[];
-  readonly searchUsed: boolean;
+  readonly mailboxOpened: boolean;
+  /** Alias for mailboxOpened for reader mode compatibility */
   readonly contactOpened: boolean;
+  readonly searchUsed: boolean;
   readonly achievements: readonly AchievementId[];
 }
 
 export const INITIAL_PROGRESS_STATE: ProgressState = Object.freeze({
   xp: 0,
+  visitedBuildings: [],
   openedStages: [],
+  chosenClasses: [],
   usedLenses: [],
-  searchUsed: false,
+  mailboxOpened: false,
   contactOpened: false,
+  searchUsed: false,
   achievements: [],
 });
 
@@ -110,9 +132,19 @@ function updateState(
     }
   }
 
+  const nextVisited = fieldUpdates.visitedBuildings ?? state.visitedBuildings;
+  const nextClasses = fieldUpdates.chosenClasses ?? state.chosenClasses;
+  const nextMailbox = fieldUpdates.mailboxOpened ?? state.mailboxOpened;
+
   const nextState: ProgressState = {
     ...state,
     ...fieldUpdates,
+    visitedBuildings: nextVisited,
+    openedStages: nextVisited,
+    chosenClasses: nextClasses,
+    usedLenses: nextClasses,
+    mailboxOpened: nextMailbox,
+    contactOpened: nextMailbox,
     xp: nextXp,
     achievements: Array.from(existingAchievements),
   };
@@ -127,12 +159,16 @@ function updateState(
   };
 }
 
-export function openStage(
+/**
+ * Enters a building. Awards +10 XP on the first visit (repeats = 0).
+ * Unlocks "First Steps" on first building, and "Completionist" when all buildings are visited.
+ */
+export function visitBuilding(
   state: ProgressState,
-  stageId: string,
-  allStageIds: readonly string[],
+  buildingId: string,
+  allBuildingIds: readonly string[] = [],
 ): ProgressDelta {
-  if (state.openedStages.includes(stageId)) {
+  if (state.visitedBuildings.includes(buildingId)) {
     return {
       nextState: state,
       xpGained: 0,
@@ -141,24 +177,38 @@ export function openStage(
     };
   }
 
-  const nextOpened = [...state.openedStages, stageId];
+  const nextVisited = [...state.visitedBuildings, buildingId];
   const newAchievements: AchievementId[] = [];
 
-  if (state.openedStages.length === 0) {
+  if (state.visitedBuildings.length === 0) {
     newAchievements.push('first-steps');
   }
 
-  const allOpened =
-    allStageIds.length > 0 && allStageIds.every((id) => nextOpened.includes(id));
-  if (allOpened) {
+  const allDone =
+    allBuildingIds.length > 0 && allBuildingIds.every((id) => nextVisited.includes(id));
+  if (allDone) {
     newAchievements.push('completionist');
   }
 
-  return updateState(state, 10, newAchievements, { openedStages: nextOpened });
+  return updateState(state, XP_PER_BUILDING, newAchievements, {
+    visitedBuildings: nextVisited,
+  });
 }
 
-export function useLens(state: ProgressState, lensId: string): ProgressDelta {
-  if (state.usedLenses.includes(lensId)) {
+/** Alias for backward compatibility with reader mode stage expansion */
+export const openStage = visitBuilding;
+
+/**
+ * Chooses a class on the Class Board signpost (or lens).
+ * Awards +5 XP on the first selection for each of the 4 classes (repeats = 0).
+ * Unlocks class-specific achievements:
+ * - 'fullstack' -> 'full-stack-curious'
+ * - 'data' -> 'data-nerd'
+ * - 'leadership' -> 'leader-of-the-pack'
+ * - 'cloud' -> 'cloud-watcher'
+ */
+export function chooseClass(state: ProgressState, classId: string): ProgressDelta {
+  if (classId === 'all' || !VALID_CLASSES.includes(classId as ValidClassId)) {
     return {
       nextState: state,
       xpGained: 0,
@@ -167,17 +217,52 @@ export function useLens(state: ProgressState, lensId: string): ProgressDelta {
     };
   }
 
-  const nextUsed = [...state.usedLenses, lensId];
+  if (state.chosenClasses.includes(classId)) {
+    return {
+      nextState: state,
+      xpGained: 0,
+      unlockedAchievements: [],
+      levelUp: null,
+    };
+  }
+
+  const nextClasses = [...state.chosenClasses, classId];
   const newAchievements: AchievementId[] = [];
 
-  if (lensId === 'fullstack') newAchievements.push('full-stack-curious');
-  if (lensId === 'data') newAchievements.push('data-nerd');
-  if (lensId === 'leadership') newAchievements.push('leader-of-the-pack');
-  if (lensId === 'cloud') newAchievements.push('cloud-watcher');
+  if (classId === 'fullstack') newAchievements.push('full-stack-curious');
+  if (classId === 'data') newAchievements.push('data-nerd');
+  if (classId === 'leadership') newAchievements.push('leader-of-the-pack');
+  if (classId === 'cloud') newAchievements.push('cloud-watcher');
 
-  return updateState(state, 5, newAchievements, { usedLenses: nextUsed });
+  return updateState(state, XP_PER_CLASS, newAchievements, {
+    chosenClasses: nextClasses,
+  });
 }
 
+/** Alias for backward compatibility with reader mode lens toggle */
+export const useLens = chooseClass;
+
+/**
+ * Opens the Mailbox (or contact info).
+ * Awards +10 XP on the first interaction (repeats = 0).
+ */
+export function openMailbox(state: ProgressState): ProgressDelta {
+  if (state.mailboxOpened) {
+    return {
+      nextState: state,
+      xpGained: 0,
+      unlockedAchievements: [],
+      levelUp: null,
+    };
+  }
+
+  return updateState(state, XP_MAILBOX, [], { mailboxOpened: true });
+}
+
+/** Alias for backward compatibility with reader mode contact opening */
+export const openContact = openMailbox;
+
+/** Kept for backwards compatibility; search no longer awards XP in the 100 XP game table. */
 export function useSearch(state: ProgressState): ProgressDelta {
   if (state.searchUsed) {
     return {
@@ -188,20 +273,7 @@ export function useSearch(state: ProgressState): ProgressDelta {
     };
   }
 
-  return updateState(state, 5, [], { searchUsed: true });
-}
-
-export function openContact(state: ProgressState): ProgressDelta {
-  if (state.contactOpened) {
-    return {
-      nextState: state,
-      xpGained: 0,
-      unlockedAchievements: [],
-      levelUp: null,
-    };
-  }
-
-  return updateState(state, 5, [], { contactOpened: true });
+  return updateState(state, 0, [], { searchUsed: true });
 }
 
 export const KONAMI_CODE = [
@@ -250,14 +322,28 @@ export function deserializeProgress(raw: string | null): ProgressState {
 
     const xp =
       typeof parsed.xp === 'number' && parsed.xp >= 0 ? Math.min(MAX_XP, parsed.xp) : 0;
-    const openedStages = Array.isArray(parsed.openedStages)
-      ? parsed.openedStages.filter((s: unknown) => typeof s === 'string')
-      : [];
-    const usedLenses = Array.isArray(parsed.usedLenses)
-      ? parsed.usedLenses.filter((l: unknown) => typeof l === 'string')
-      : [];
+
+    const rawBuildings = Array.isArray(parsed.visitedBuildings)
+      ? parsed.visitedBuildings
+      : Array.isArray(parsed.openedStages)
+        ? parsed.openedStages
+        : [];
+    const visitedBuildings: string[] = Array.from(
+      new Set(rawBuildings.filter((s: unknown): s is string => typeof s === 'string')),
+    );
+
+    const rawClasses = Array.isArray(parsed.chosenClasses)
+      ? parsed.chosenClasses
+      : Array.isArray(parsed.usedLenses)
+        ? parsed.usedLenses
+        : [];
+    const chosenClasses: string[] = Array.from(
+      new Set(rawClasses.filter((l: unknown): l is string => typeof l === 'string')),
+    );
+
+    const mailboxOpened = Boolean(parsed.mailboxOpened ?? parsed.contactOpened);
     const searchUsed = Boolean(parsed.searchUsed);
-    const contactOpened = Boolean(parsed.contactOpened);
+
     const achievements = Array.isArray(parsed.achievements)
       ? parsed.achievements.filter(
           (id: unknown) => typeof id === 'string' && ACHIEVEMENT_IDS.has(id),
@@ -266,10 +352,13 @@ export function deserializeProgress(raw: string | null): ProgressState {
 
     return {
       xp,
-      openedStages: Array.from(new Set(openedStages)),
-      usedLenses: Array.from(new Set(usedLenses)),
+      visitedBuildings,
+      openedStages: visitedBuildings,
+      chosenClasses,
+      usedLenses: chosenClasses,
+      mailboxOpened,
+      contactOpened: mailboxOpened,
       searchUsed,
-      contactOpened,
       achievements: Array.from(new Set(achievements as AchievementId[])),
     };
   } catch {
