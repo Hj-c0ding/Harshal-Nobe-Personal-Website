@@ -14,12 +14,17 @@
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
-    <a class="skip-link" href="#work">Skip to stages</a>
+    <a class="skip-link" href="#reader-mode" id="skip-to-reader-link"
+      >Skip the game: read everything</a
+    >
 
-    <!-- Fixed HUD mount container -->
+    <!-- Playable Canvas Game Root -->
+    <div id="game-root"></div>
+
+    <!-- Fixed HUD mount container for Reader Mode -->
     <div id="hud-root"></div>
 
-    <div class="page">
+    <div class="page" id="reader-mode">
       <header class="title-screen">
         <h1 class="name">Harshal Joshi</h1>
         <p class="subject">Mathematics + Computer Science, UIUC</p>

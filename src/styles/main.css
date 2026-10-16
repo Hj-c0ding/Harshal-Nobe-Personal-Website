@@ -705,3 +705,188 @@ dialog:focus-visible {
     padding-bottom: 0.25rem;
   }
 }
+
+/* ==========================================================================
+   GAME CANVAS, CONTROLS & PANELS
+   ========================================================================== */
+
+.game-screen-root {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.hud-goal-line {
+  font-family: var(--font-pixel);
+  font-size: 0.65rem;
+  color: var(--color-deepest);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-instructions {
+  background-color: var(--color-lightest);
+  border: 3px solid var(--color-deepest);
+  box-shadow: var(--pixel-shadow-sm);
+  padding: 0.75rem 1rem;
+}
+
+.instructions-title {
+  font-family: var(--font-pixel);
+  font-size: 0.9rem;
+  color: var(--color-deepest);
+  margin: 0 0 0.5rem 0;
+}
+
+.instructions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--color-dark);
+}
+
+.instructions-note {
+  font-size: 0.8rem;
+  color: var(--color-deepest);
+  margin: 0;
+}
+
+.game-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--color-deepest);
+  padding: 6px;
+  border: 4px solid var(--color-deepest);
+  box-shadow: var(--pixel-shadow);
+  width: 100%;
+  max-width: 652px;
+  margin: 0 auto;
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 20 / 14;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background-color: var(--color-light);
+  outline: none;
+}
+
+.game-canvas:focus-visible {
+  outline: 3px solid var(--color-accent);
+}
+
+/* Touch D-Pad & Action Buttons */
+.game-touch-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0.5rem 1rem;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.dpad-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dpad-middle {
+  display: flex;
+  align-items: center;
+}
+
+.dpad-center {
+  width: 44px;
+  height: 44px;
+  background-color: var(--color-dark);
+}
+
+.dpad-btn {
+  width: 44px;
+  height: 44px;
+  background-color: var(--color-deepest);
+  color: var(--color-lightest);
+  border: 2px solid var(--color-deepest);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.dpad-btn:active {
+  background-color: var(--color-dark);
+}
+
+.action-buttons-cluster {
+  display: flex;
+  gap: 1rem;
+}
+
+.action-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 0;
+  background-color: var(--color-deepest);
+  color: var(--color-lightest);
+  border: 3px solid var(--color-deepest);
+  font-family: var(--font-pixel);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--pixel-shadow-sm);
+}
+
+.action-btn.action-b {
+  background-color: var(--color-dark);
+}
+
+.action-btn.action-a {
+  background-color: var(--color-accent);
+}
+
+.action-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+/* Dialog content styles */
+.dialog-class-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.class-pick-btn {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+}
+
+.contact-links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.contact-link {
+  color: var(--color-deepest);
+  font-weight: 700;
+  text-decoration: underline;
+}

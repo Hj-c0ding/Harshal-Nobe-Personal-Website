@@ -226,4 +226,44 @@ describe('World Logic and Navigation Tests', () => {
     expect(highlightedBuildings(null)).toEqual([]);
     expect(highlightedBuildings(undefined)).toEqual([]);
   });
+
+  it('locked gate cannot be bypassed (BFS from spawn with the gate treated as solid must NOT reach any tile beyond the gate)', () => {
+    const visited = new Set<string>();
+    const queue: Array<{ x: number; y: number }> = [{ ...SPAWN_POSITION }];
+    visited.add(`${SPAWN_POSITION.x},${SPAWN_POSITION.y}`);
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) break;
+
+      const neighbors = [
+        { x: current.x, y: current.y - 1 },
+        { x: current.x, y: current.y + 1 },
+        { x: current.x - 1, y: current.y },
+        { x: current.x + 1, y: current.y },
+      ];
+
+      for (const neighbor of neighbors) {
+        const key = `${neighbor.x},${neighbor.y}`;
+        // XP is 0, so gate is solid
+        if (!visited.has(key) && isTileWalkable(neighbor.x, neighbor.y, 0)) {
+          visited.add(key);
+          queue.push(neighbor);
+        }
+      }
+    }
+
+    // Gate tile (10, 1) itself cannot be reached while locked
+    expect(visited.has(`${GATE_POSITION.x},${GATE_POSITION.y}`)).toBe(false);
+
+    // No tile beyond/behind the gate line (y <= 0) can be reached
+    for (const key of visited) {
+      const parts = key.split(',');
+      const yStr = parts[1];
+      if (yStr !== undefined) {
+        const y = parseInt(yStr, 10);
+        expect(y).toBeGreaterThan(0);
+      }
+    }
+  });
 });

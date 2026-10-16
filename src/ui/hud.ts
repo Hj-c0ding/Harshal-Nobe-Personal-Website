@@ -22,6 +22,14 @@ export interface HudOptions {
   toastDurationMs?: number;
 }
 
+export function getNextGoalText(xp: number): string {
+  if (xp < 20) return `Next: Scout at 20 XP (+${20 - xp} XP)`;
+  if (xp < 45) return `Next: Builder at 45 XP (+${45 - xp} XP)`;
+  if (xp < 75) return `Next: Engineer at 75 XP (+${75 - xp} XP)`;
+  if (xp < 100) return `Next: Gate opens at 100 XP (+${100 - xp} XP)`;
+  return 'Gate open! Step through to finish.';
+}
+
 export function mountHud(container: HTMLElement, options: HudOptions = {}): HudHandle {
   const doc = container.ownerDocument;
   const win = doc.defaultView ?? window;
@@ -63,6 +71,7 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
     >
       <div class="hud-progressbar-fill" id="hud-progressbar-fill" style="width: ${(state.xp / MAX_XP) * 100}%"></div>
     </div>
+    <div class="hud-goal-line" id="hud-next-goal">${getNextGoalText(state.xp)}</div>
   `;
 
   const stats = doc.createElement('div');
@@ -111,6 +120,7 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
   const xpValElem = inner.querySelector('#hud-xp-val') as HTMLElement;
   const progressBar = inner.querySelector('#hud-progressbar') as HTMLElement;
   const progressFill = inner.querySelector('#hud-progressbar-fill') as HTMLElement;
+  const goalElem = inner.querySelector('#hud-next-goal') as HTMLElement;
   const achvCountElem = inner.querySelector('#hud-achievements-count') as HTMLElement;
   const newGameBtn = inner.querySelector('#hud-new-game-btn') as HTMLButtonElement;
   const cancelBtn = dialog.querySelector('#hud-dialog-cancel') as HTMLButtonElement;
@@ -121,6 +131,7 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
     xpValElem.textContent = `${state.xp}/${MAX_XP}`;
     progressBar.setAttribute('aria-valuenow', String(state.xp));
     progressFill.style.width = `${(state.xp / MAX_XP) * 100}%`;
+    if (goalElem) goalElem.textContent = getNextGoalText(state.xp);
     achvCountElem.textContent = `${state.achievements.length}/${ACHIEVEMENTS.length}`;
   };
 

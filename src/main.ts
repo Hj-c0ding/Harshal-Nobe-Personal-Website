@@ -16,7 +16,22 @@ import {
 import { mountHud } from './ui/hud';
 import { mountLenses } from './ui/lenses';
 
+import { mountGame } from './ui/game';
+
 const allStageIds = entries.map((e) => e.id);
+
+// Mount Playable Canvas Game
+const gameRoot = document.getElementById('game-root');
+export const gameHandle = gameRoot
+  ? mountGame(gameRoot, {
+      onXpGain: (delta) => {
+        if (hud) hud.applyDelta(delta);
+      },
+      onReset: () => {
+        lensesHandle?.collapseAllStages();
+      },
+    })
+  : null;
 
 // Mount HUD
 const hudRoot = document.getElementById('hud-root');
