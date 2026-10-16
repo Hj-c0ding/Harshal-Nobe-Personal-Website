@@ -1,3 +1,7 @@
+import { BUILDING_IDS } from '../data/world';
+export { BUILDING_IDS };
+const KNOWN_BUILDING_IDS = new Set<string>(BUILDING_IDS);
+
 export type LevelName = 'Rookie' | 'Scout' | 'Builder' | 'Engineer' | 'Maxed Out';
 
 export interface LevelThreshold {
@@ -96,6 +100,45 @@ export const INITIAL_PROGRESS_STATE: ProgressState = Object.freeze({
 
 export const STORAGE_KEY = 'cartridge-progress-v1';
 
+/**
+ * Single source of truth for XP. XP is never accumulated or trusted from storage;
+ * it is always derived from the objective flags:
+ *   visitedBuildings x 10 + chosenClasses x 5 + (mailboxOpened ? 10 : 0), capped at MAX_XP.
+ */
+export function computeXp(
+  state: Pick<ProgressState, 'visitedBuildings' | 'chosenClasses' | 'mailboxOpened'>,
+): number {
+  const raw =
+    state.visitedBuildings.length * XP_PER_BUILDING +
+    state.chosenClasses.length * XP_PER_CLASS +
+    (state.mailboxOpened ? XP_MAILBOX : 0);
+  return Math.min(MAX_XP, raw);
+}
+
+/**
+ * Rebuilds a consistent state from its flags: recomputes xp and mirrors the
+ * legacy reader-mode alias fields so they can never diverge from the real flags.
+ */
+function normalizeState(
+  base: ProgressState,
+  visitedBuildings: readonly string[],
+  chosenClasses: readonly string[],
+  mailboxOpened: boolean,
+  achievements: readonly AchievementId[],
+): ProgressState {
+  return {
+    ...base,
+    visitedBuildings,
+    openedStages: visitedBuildings,
+    chosenClasses,
+    usedLenses: chosenClasses,
+    mailboxOpened,
+    contactOpened: mailboxOpened,
+    achievements,
+    xp: computeXp({ visitedBuildings, chosenClasses, mailboxOpened }),
+  };
+}
+
 export function getLevel(xp: number): LevelName {
   let currentLevel: LevelName = 'Rookie';
   for (const item of LEVEL_THRESHOLDS) {
@@ -115,13 +158,11 @@ export interface ProgressDelta {
 
 function updateState(
   state: ProgressState,
-  addedXp: number,
   newAchievements: AchievementId[],
   fieldUpdates: Partial<ProgressState>,
 ): ProgressDelta {
-  const nextXp = Math.min(MAX_XP, state.xp + addedXp);
-  const oldLevel = getLevel(state.xp);
-  const nextLevel = getLevel(nextXp);
+  const prevXp = computeXp(state);
+  const oldLevel = getLevel(prevXp);
 
   const existingAchievements = new Set(state.achievements);
   const genuinelyNewAchievements: AchievementId[] = [];
@@ -136,24 +177,21 @@ function updateState(
   const nextClasses = fieldUpdates.chosenClasses ?? state.chosenClasses;
   const nextMailbox = fieldUpdates.mailboxOpened ?? state.mailboxOpened;
 
-  const nextState: ProgressState = {
-    ...state,
-    ...fieldUpdates,
-    visitedBuildings: nextVisited,
-    openedStages: nextVisited,
-    chosenClasses: nextClasses,
-    usedLenses: nextClasses,
-    mailboxOpened: nextMailbox,
-    contactOpened: nextMailbox,
-    xp: nextXp,
-    achievements: Array.from(existingAchievements),
-  };
+  const nextState = normalizeState(
+    { ...state, ...fieldUpdates },
+    nextVisited,
+    nextClasses,
+    nextMailbox,
+    Array.from(existingAchievements),
+  );
+  const nextXp = nextState.xp;
+  const nextLevel = getLevel(nextXp);
 
   const levelUp = nextLevel !== oldLevel ? nextLevel : null;
 
   return {
     nextState,
-    xpGained: nextXp - state.xp,
+    xpGained: Math.max(0, nextXp - prevXp),
     unlockedAchievements: genuinelyNewAchievements,
     levelUp,
   };
@@ -190,12 +228,15 @@ export function visitBuilding(
     newAchievements.push('completionist');
   }
 
-  return updateState(state, XP_PER_BUILDING, newAchievements, {
+  return updateState(state, newAchievements, {
     visitedBuildings: nextVisited,
   });
 }
 
-/** Alias for backward compatibility with reader mode stage expansion */
+/**
+ * @deprecated Same function reference as visitBuilding (identical XP). App code
+ * must dispatch through the progress store; kept only for API compatibility.
+ */
 export const openStage = visitBuilding;
 
 /**
@@ -234,12 +275,15 @@ export function chooseClass(state: ProgressState, classId: string): ProgressDelt
   if (classId === 'leadership') newAchievements.push('leader-of-the-pack');
   if (classId === 'cloud') newAchievements.push('cloud-watcher');
 
-  return updateState(state, XP_PER_CLASS, newAchievements, {
+  return updateState(state, newAchievements, {
     chosenClasses: nextClasses,
   });
 }
 
-/** Alias for backward compatibility with reader mode lens toggle */
+/**
+ * @deprecated Same function reference as chooseClass (identical XP). App code
+ * must dispatch through the progress store; kept only for API compatibility.
+ */
 export const useLens = chooseClass;
 
 /**
@@ -256,13 +300,19 @@ export function openMailbox(state: ProgressState): ProgressDelta {
     };
   }
 
-  return updateState(state, XP_MAILBOX, [], { mailboxOpened: true });
+  return updateState(state, [], { mailboxOpened: true });
 }
 
-/** Alias for backward compatibility with reader mode contact opening */
+/**
+ * @deprecated Same function reference as openMailbox (identical +10 once). Game
+ * mailbox and reader-mode contact both dispatch openMailbox through the store.
+ */
 export const openContact = openMailbox;
 
-/** Kept for backwards compatibility; search no longer awards XP in the 100 XP game table. */
+/**
+ * @deprecated Search never awards XP (it is not part of computeXp). Kept only so
+ * old saves with searchUsed still load; the app no longer calls it.
+ */
 export function useSearch(state: ProgressState): ProgressDelta {
   if (state.searchUsed) {
     return {
@@ -273,7 +323,7 @@ export function useSearch(state: ProgressState): ProgressDelta {
     };
   }
 
-  return updateState(state, 0, [], { searchUsed: true });
+  return updateState(state, [], { searchUsed: true });
 }
 
 export const KONAMI_CODE = [
@@ -305,7 +355,7 @@ export function unlockKonami(state: ProgressState): ProgressDelta {
     };
   }
 
-  return updateState(state, 0, ['secret-handshake'], {});
+  return updateState(state, ['secret-handshake'], {});
 }
 
 export function serializeProgress(state: ProgressState): string {
@@ -320,8 +370,8 @@ export function deserializeProgress(raw: string | null): ProgressState {
       return { ...INITIAL_PROGRESS_STATE };
     }
 
-    const xp =
-      typeof parsed.xp === 'number' && parsed.xp >= 0 ? Math.min(MAX_XP, parsed.xp) : 0;
+    // Stored xp is intentionally ignored: it is recomputed from the flags below
+    // so that saves with a stale or inconsistent xp heal on load.
 
     const rawBuildings = Array.isArray(parsed.visitedBuildings)
       ? parsed.visitedBuildings
@@ -329,7 +379,11 @@ export function deserializeProgress(raw: string | null): ProgressState {
         ? parsed.openedStages
         : [];
     const visitedBuildings: string[] = Array.from(
-      new Set(rawBuildings.filter((s: unknown): s is string => typeof s === 'string')),
+      new Set(
+        rawBuildings.filter(
+          (s: unknown): s is string => typeof s === 'string' && KNOWN_BUILDING_IDS.has(s),
+        ),
+      ),
     );
 
     const rawClasses = Array.isArray(parsed.chosenClasses)
@@ -338,7 +392,12 @@ export function deserializeProgress(raw: string | null): ProgressState {
         ? parsed.usedLenses
         : [];
     const chosenClasses: string[] = Array.from(
-      new Set(rawClasses.filter((l: unknown): l is string => typeof l === 'string')),
+      new Set(
+        rawClasses.filter(
+          (l: unknown): l is string =>
+            typeof l === 'string' && VALID_CLASSES.includes(l as ValidClassId),
+        ),
+      ),
     );
 
     const mailboxOpened = Boolean(parsed.mailboxOpened ?? parsed.contactOpened);
@@ -350,17 +409,13 @@ export function deserializeProgress(raw: string | null): ProgressState {
         )
       : [];
 
-    return {
-      xp,
+    return normalizeState(
+      { ...INITIAL_PROGRESS_STATE, searchUsed },
       visitedBuildings,
-      openedStages: visitedBuildings,
       chosenClasses,
-      usedLenses: chosenClasses,
       mailboxOpened,
-      contactOpened: mailboxOpened,
-      searchUsed,
-      achievements: Array.from(new Set(achievements as AchievementId[])),
-    };
+      Array.from(new Set(achievements as AchievementId[])),
+    );
   } catch {
     return { ...INITIAL_PROGRESS_STATE };
   }

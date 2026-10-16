@@ -5,80 +5,49 @@ import '@fontsource/atkinson-hyperlegible/700.css';
 import './styles/main.css';
 
 import { entries } from './data/entries';
-import {
-  checkKonamiCode,
-  openContact,
-  openStage,
-  unlockKonami,
-  useLens,
-  useSearch,
-} from './lib/progress';
+import { checkKonamiCode } from './lib/progress';
+import { createProgressStore } from './lib/store';
 import { mountHud } from './ui/hud';
 import { mountLenses } from './ui/lenses';
 
 import { mountGame } from './ui/game';
 
-const allStageIds = entries.map((e) => e.id);
+// The ONE progress store for the whole page. Canvas game, HUD and reader mode
+// all read and write through it; nothing else holds a copy of progress.
+const store = createProgressStore({ storage: window.localStorage });
 
 // Mount Playable Canvas Game
 const gameRoot = document.getElementById('game-root');
-export const gameHandle = gameRoot
-  ? mountGame(gameRoot, {
-      onXpGain: (delta) => {
-        if (hud) hud.applyDelta(delta);
-      },
-      onReset: () => {
-        lensesHandle?.collapseAllStages();
-      },
-    })
-  : null;
+export const gameHandle = gameRoot ? mountGame(gameRoot, { store }) : null;
 
 // Mount HUD
 const hudRoot = document.getElementById('hud-root');
-const hud = hudRoot
-  ? mountHud(hudRoot, {
-      onReset: () => {
-        lensesHandle?.collapseAllStages();
-      },
-    })
-  : null;
+mountHud(hudRoot ?? document.createElement('div'), { store });
 
-// Mount Lenses & Stage Select
+// Mount Lenses & Stage Select (reader mode)
 const root = document.getElementById('lenses-root');
 const lensesHandle = root
   ? mountLenses(root, entries, window, {
       onStageExpand: (stageId: string) => {
-        if (!hud) return;
-        const current = hud.getState();
-        const delta = openStage(current, stageId, allStageIds);
-        hud.applyDelta(delta);
-        gameHandle?.applyDelta(delta);
+        store.dispatch({ type: 'visitBuilding', buildingId: stageId });
       },
       onLensUse: (lensId: string) => {
-        if (!hud) return;
-        const current = hud.getState();
-        const delta = useLens(current, lensId);
-        hud.applyDelta(delta);
-        gameHandle?.applyDelta(delta);
-      },
-      onSearchUse: () => {
-        if (!hud) return;
-        const current = hud.getState();
-        const delta = useSearch(current);
-        hud.applyDelta(delta);
-        gameHandle?.applyDelta(delta);
+        store.dispatch({ type: 'chooseClass', classId: lensId });
       },
     })
   : null;
 
-// Track opening contact section
+// Any reset (from either New Game button) also collapses reader-mode stages.
+store.subscribe((_state, delta) => {
+  if (delta === null) lensesHandle?.collapseAllStages();
+});
+
+// Reader-mode contact section is the same objective as the game mailbox:
+// both dispatch openMailbox (+10 once).
 const contactSection = document.getElementById('contact-section');
-if (contactSection && hud) {
+if (contactSection) {
   const triggerContactXp = (): void => {
-    const current = hud.getState();
-    const delta = openContact(current);
-    hud.applyDelta(delta);
-    gameHandle?.applyDelta(delta);
+    store.dispatch({ type: 'openMailbox' });
   };
 
   // Trigger on click, focusin, or scroll into view
@@ -106,11 +75,6 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
   }
 
   if (checkKonamiCode(keyHistory)) {
-    if (hud) {
-      const current = hud.getState();
-      const delta = unlockKonami(current);
-      hud.applyDelta(delta);
-      gameHandle?.applyDelta(delta);
-    }
+    store.dispatch({ type: 'unlockKonami' });
   }
 });

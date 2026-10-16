@@ -1,24 +1,24 @@
 import {
   ACHIEVEMENTS,
-  clearProgress,
   getLevel,
-  loadProgress,
   MAX_XP,
-  saveProgress,
   type ProgressDelta,
   type ProgressState,
 } from '../lib/progress';
+import { createProgressStore, type ProgressStore } from '../lib/store';
 
 export interface HudHandle {
   getState(): ProgressState;
+  /** Commits a delta computed from getState() into the shared store. */
   applyDelta(delta: ProgressDelta): void;
   showToast(message: string): void;
   destroy(): void;
 }
 
 export interface HudOptions {
+  /** Shared progress store. If omitted, a store backed by `storage` is created. */
+  store?: ProgressStore;
   storage?: Storage | null;
-  onReset?: () => void;
   toastDurationMs?: number;
 }
 
@@ -33,8 +33,12 @@ export function getNextGoalText(xp: number): string {
 export function mountHud(container: HTMLElement, options: HudOptions = {}): HudHandle {
   const doc = container.ownerDocument;
   const win = doc.defaultView ?? window;
-  const storage = options.storage !== undefined ? options.storage : win.localStorage;
-  let state: ProgressState = loadProgress(storage);
+  const store =
+    options.store ??
+    createProgressStore({
+      storage: options.storage !== undefined ? options.storage : win.localStorage,
+    });
+  const state = (): ProgressState => store.getState();
 
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -50,7 +54,7 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
   brand.className = 'hud-brand';
   brand.innerHTML = `
     <span class="hud-player">HARSHAL</span>
-    <span class="hud-level-badge" id="hud-level-badge">LV: <strong id="hud-level">${getLevel(state.xp)}</strong></span>
+    <span class="hud-level-badge" id="hud-level-badge">LV: <strong id="hud-level">${getLevel(state().xp)}</strong></span>
   `;
 
   const barContainer = doc.createElement('div');
@@ -58,7 +62,7 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
   barContainer.innerHTML = `
     <div class="hud-label-row">
       <span class="hud-xp-label">XP</span>
-      <span class="hud-xp-val" id="hud-xp-val">${state.xp}/${MAX_XP}</span>
+      <span class="hud-xp-val" id="hud-xp-val">${state().xp}/${MAX_XP}</span>
     </div>
     <div 
       class="hud-progressbar" 
@@ -67,18 +71,18 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
       aria-label="Explorer progress" 
       aria-valuemin="0" 
       aria-valuemax="${MAX_XP}" 
-      aria-valuenow="${state.xp}"
+      aria-valuenow="${state().xp}"
     >
-      <div class="hud-progressbar-fill" id="hud-progressbar-fill" style="width: ${(state.xp / MAX_XP) * 100}%"></div>
+      <div class="hud-progressbar-fill" id="hud-progressbar-fill" style="width: ${(state().xp / MAX_XP) * 100}%"></div>
     </div>
-    <div class="hud-goal-line" id="hud-next-goal">${getNextGoalText(state.xp)}</div>
+    <div class="hud-goal-line" id="hud-next-goal">${getNextGoalText(state().xp)}</div>
   `;
 
   const stats = doc.createElement('div');
   stats.className = 'hud-stats';
   stats.innerHTML = `
     <span class="hud-achievements" id="hud-achievements" title="Achievements unlocked">
-      ACHV: <strong id="hud-achievements-count">${state.achievements.length}/${ACHIEVEMENTS.length}</strong>
+      ACHV: <strong id="hud-achievements-count">${state().achievements.length}/${ACHIEVEMENTS.length}</strong>
     </span>
     <button type="button" class="hud-btn" id="hud-new-game-btn">New Game</button>
   `;
@@ -127,12 +131,13 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
   const dialogForm = dialog.querySelector('form') as HTMLFormElement;
 
   const renderHud = (): void => {
-    levelElem.textContent = getLevel(state.xp);
-    xpValElem.textContent = `${state.xp}/${MAX_XP}`;
-    progressBar.setAttribute('aria-valuenow', String(state.xp));
-    progressFill.style.width = `${(state.xp / MAX_XP) * 100}%`;
-    if (goalElem) goalElem.textContent = getNextGoalText(state.xp);
-    achvCountElem.textContent = `${state.achievements.length}/${ACHIEVEMENTS.length}`;
+    const s = state();
+    levelElem.textContent = getLevel(s.xp);
+    xpValElem.textContent = `${s.xp}/${MAX_XP}`;
+    progressBar.setAttribute('aria-valuenow', String(s.xp));
+    progressFill.style.width = `${(s.xp / MAX_XP) * 100}%`;
+    if (goalElem) goalElem.textContent = getNextGoalText(s.xp);
+    achvCountElem.textContent = `${s.achievements.length}/${ACHIEVEMENTS.length}`;
   };
 
   const showToast = (message: string): void => {
@@ -152,10 +157,13 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
     }, duration);
   };
 
-  const applyDelta = (delta: ProgressDelta): void => {
-    state = delta.nextState;
-    saveProgress(state, storage);
+  const onStoreChange = (_next: ProgressState, delta: ProgressDelta | null): void => {
     renderHud();
+
+    if (delta === null) {
+      showToast('Game progress reset. Fresh start!');
+      return;
+    }
 
     const messages: string[] = [];
     if (delta.xpGained > 0) {
@@ -175,6 +183,7 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
       showToast(messages.join(' '));
     }
   };
+  const unsubscribe = store.subscribe(onStoreChange);
 
   // Dialog handlers
   const openDialog = (): void => {
@@ -196,14 +205,9 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
 
   const onConfirmReset = (e?: Event): void => {
     if (e) e.preventDefault();
-    clearProgress(storage);
-    state = loadProgress(storage);
-    renderHud();
     closeDialog();
-    showToast('Game progress reset. Fresh start!');
-    if (options.onReset) {
-      options.onReset();
-    }
+    // Clears localStorage and notifies every subscriber (HUD, canvas, reader mode).
+    store.reset();
   };
 
   newGameBtn.addEventListener('click', openDialog);
@@ -213,10 +217,11 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
   renderHud();
 
   return {
-    getState: () => state,
-    applyDelta,
+    getState: state,
+    applyDelta: (delta) => store.commit(delta),
     showToast,
     destroy: () => {
+      unsubscribe();
       if (toastTimer) clearTimeout(toastTimer);
       newGameBtn.removeEventListener('click', openDialog);
       cancelBtn.removeEventListener('click', closeDialog);

@@ -11,17 +11,12 @@ import {
 } from '../data/world';
 import {
   ACHIEVEMENTS,
-  clearProgress,
   getLevel,
-  loadProgress,
   MAX_XP,
-  openMailbox,
-  saveProgress,
-  visitBuilding,
-  chooseClass,
   type ProgressDelta,
   type ProgressState,
 } from '../lib/progress';
+import { createProgressStore, type ProgressStore } from '../lib/store';
 import {
   getAdjacentInteractable,
   highlightedBuildings,
@@ -32,10 +27,10 @@ import {
 import type { LensId } from '../lib/lenses';
 
 export interface GameOptions {
+  /** Shared progress store. If omitted, a store backed by `storage` is created. */
+  store?: ProgressStore;
   storage?: Storage | null;
-  onXpGain?: (delta: ProgressDelta) => void;
   onAnnounce?: (message: string) => void;
-  onReset?: () => void;
   initialState?: Partial<WorldState>;
 }
 
@@ -47,7 +42,6 @@ export interface GameHandle {
   closeDialog(): void;
   setSelectedClass(classId: LensId | 'all' | null): void;
   getSelectedClass(): LensId | 'all' | null;
-  applyDelta(delta: ProgressDelta): void;
   destroy(): void;
 }
 
@@ -74,14 +68,20 @@ function getNextGoalText(xp: number): string {
 export function mountGame(container: HTMLElement, options: GameOptions = {}): GameHandle {
   const doc = container.ownerDocument;
   const win = doc.defaultView ?? window;
-  const storage = options.storage !== undefined ? options.storage : win.localStorage;
+  const store =
+    options.store ??
+    createProgressStore({
+      storage: options.storage !== undefined ? options.storage : win.localStorage,
+    });
+  const progress = (): ProgressState => store.getState();
 
-  let progressState: ProgressState = loadProgress(storage);
-  let playerState: WorldState = {
+  // Player position only. XP is never copied here; it is read from the store
+  // whenever the world logic needs it (gate checks, movement).
+  let playerPos: { x: number; y: number } = {
     x: options.initialState?.x ?? SPAWN_POSITION.x,
     y: options.initialState?.y ?? SPAWN_POSITION.y,
-    xp: progressState.xp,
   };
+  const worldState = (): WorldState => ({ ...playerPos, xp: progress().xp });
 
   let selectedClass: LensId | 'all' | null = null;
   let walkFrame = 0;
@@ -105,12 +105,12 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     <div class="hud-inner">
       <div class="hud-brand">
         <span class="hud-player">HARSHAL</span>
-        <span class="hud-level-badge">LV: <strong id="game-hud-level">${getLevel(progressState.xp)}</strong></span>
+        <span class="hud-level-badge">LV: <strong id="game-hud-level">${getLevel(progress().xp)}</strong></span>
       </div>
       <div class="hud-progress-wrap">
         <div class="hud-label-row">
           <span class="hud-xp-label">XP</span>
-          <span class="hud-xp-val" id="game-hud-xp-val">${progressState.xp}/${MAX_XP}</span>
+          <span class="hud-xp-val" id="game-hud-xp-val">${progress().xp}/${MAX_XP}</span>
         </div>
         <div 
           class="hud-progressbar" 
@@ -119,15 +119,15 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
           aria-label="Campus game progress" 
           aria-valuemin="0" 
           aria-valuemax="${MAX_XP}" 
-          aria-valuenow="${progressState.xp}"
+          aria-valuenow="${progress().xp}"
         >
-          <div class="hud-progressbar-fill" id="game-hud-progressbar-fill" style="width: ${(progressState.xp / MAX_XP) * 100}%"></div>
+          <div class="hud-progressbar-fill" id="game-hud-progressbar-fill" style="width: ${(progress().xp / MAX_XP) * 100}%"></div>
         </div>
-        <div class="hud-goal-line" id="game-hud-next-goal">${getNextGoalText(progressState.xp)}</div>
+        <div class="hud-goal-line" id="game-hud-next-goal">${getNextGoalText(progress().xp)}</div>
       </div>
       <div class="hud-stats">
         <span class="hud-achievements" id="game-hud-trophies" title="Achievements unlocked">
-          TROPHIES: <strong>${progressState.achievements.length}/${ACHIEVEMENTS.length}</strong>
+          TROPHIES: <strong>${progress().achievements.length}/${ACHIEVEMENTS.length}</strong>
         </span>
         <button type="button" class="hud-btn" id="game-hud-new-game-btn">New Game</button>
       </div>
@@ -328,6 +328,7 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
   };
 
   const updateHud = (): void => {
+    const s = progress();
     const levelEl = hud.querySelector('#game-hud-level');
     const xpValEl = hud.querySelector('#game-hud-xp-val');
     const progressFill = hud.querySelector('#game-hud-progressbar-fill') as HTMLElement;
@@ -335,21 +336,16 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     const goalEl = hud.querySelector('#game-hud-next-goal');
     const trophiesEl = hud.querySelector('#game-hud-trophies strong');
 
-    if (levelEl) levelEl.textContent = getLevel(progressState.xp);
-    if (xpValEl) xpValEl.textContent = `${progressState.xp}/${MAX_XP}`;
-    if (progressBar) progressBar.setAttribute('aria-valuenow', String(progressState.xp));
-    if (progressFill) progressFill.style.width = `${(progressState.xp / MAX_XP) * 100}%`;
-    if (goalEl) goalEl.textContent = getNextGoalText(progressState.xp);
+    if (levelEl) levelEl.textContent = getLevel(s.xp);
+    if (xpValEl) xpValEl.textContent = `${s.xp}/${MAX_XP}`;
+    if (progressBar) progressBar.setAttribute('aria-valuenow', String(s.xp));
+    if (progressFill) progressFill.style.width = `${(s.xp / MAX_XP) * 100}%`;
+    if (goalEl) goalEl.textContent = getNextGoalText(s.xp);
     if (trophiesEl)
-      trophiesEl.textContent = `${progressState.achievements.length}/${ACHIEVEMENTS.length}`;
+      trophiesEl.textContent = `${s.achievements.length}/${ACHIEVEMENTS.length}`;
   };
 
-  const applyDelta = (delta: ProgressDelta): void => {
-    progressState = delta.nextState;
-    playerState = { ...playerState, xp: progressState.xp };
-    saveProgress(progressState, storage);
-    updateHud();
-
+  const announceDelta = (delta: ProgressDelta): void => {
     const messages: string[] = [];
     if (delta.xpGained > 0) messages.push(`+${delta.xpGained} XP!`);
     if (delta.levelUp) messages.push(`LEVEL UP! Now ${delta.levelUp}!`);
@@ -360,9 +356,6 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
 
     if (messages.length > 0) {
       announce(messages.join(' '));
-    }
-    if (options.onXpGain) {
-      options.onXpGain(delta);
     }
   };
 
@@ -401,21 +394,12 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     }
   };
 
-  // Reset Progress logic
+  // Reset Progress logic: the store clears localStorage and notifies every
+  // subscriber; this game resets its own view state in onStoreChange below.
   const onConfirmReset = (e?: Event): void => {
     if (e) e.preventDefault();
-    clearProgress(storage);
-    progressState = loadProgress(storage);
-    playerState = {
-      x: SPAWN_POSITION.x,
-      y: SPAWN_POSITION.y,
-      xp: progressState.xp,
-    };
-    selectedClass = null;
-    updateHud();
     closeModal(resetDialog);
-    announce('Game progress reset. Fresh start!');
-    if (options.onReset) options.onReset();
+    store.reset();
   };
 
   hud
@@ -428,7 +412,7 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
 
   endingDialog.querySelector('#game-ending-play-again')?.addEventListener('click', () => {
     closeModal(endingDialog);
-    onConfirmReset();
+    store.reset();
   });
 
   buildingDialog
@@ -465,8 +449,7 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
         e.preventDefault();
         selectedClass = def.id;
         if (def.id !== 'all') {
-          const delta = chooseClass(progressState, def.id);
-          applyDelta(delta);
+          store.dispatch({ type: 'chooseClass', classId: def.id });
         }
         updateClassButtons();
         announce(
@@ -502,11 +485,28 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
 
   updateClassButtons();
 
+  // Single subscription to the shared store. Changes made anywhere (canvas,
+  // reader mode, either New Game button) flow back here.
+  const onStoreChange = (_state: ProgressState, delta: ProgressDelta | null): void => {
+    updateHud();
+    if (delta === null) {
+      closeActiveDialog();
+      playerPos = { x: SPAWN_POSITION.x, y: SPAWN_POSITION.y };
+      selectedClass = null;
+      lastAnnouncedInteractable = null;
+      updateClassButtons();
+      announce('Game progress reset. Fresh start!');
+      return;
+    }
+    announceDelta(delta);
+  };
+  const unsubscribe = store.subscribe(onStoreChange);
+
   // Action / Interaction Trigger
   const interact = (): void => {
     if (activeDialog) return;
 
-    const targetId = getAdjacentInteractable(playerState);
+    const targetId = getAdjacentInteractable(playerPos);
     if (!targetId) return;
 
     if (targetId === 'board') {
@@ -516,14 +516,13 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     }
 
     if (targetId === 'mailbox') {
-      const delta = openMailbox(progressState);
-      applyDelta(delta);
+      store.dispatch({ type: 'openMailbox' });
       openModal(mailboxDialog);
       return;
     }
 
     if (targetId === 'gate') {
-      if (isGateOpen(playerState.xp ?? 0)) {
+      if (isGateOpen(progress().xp)) {
         openModal(endingDialog);
       } else {
         announce('The Final Gate is locked! Reach 100 XP to open it.');
@@ -534,9 +533,7 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     // Target is a building id
     const entry: Entry | undefined = entries.find((e) => e.id === targetId);
     if (entry) {
-      const allBuildingIds = BUILDINGS.map((b) => b.id);
-      const delta = visitBuilding(progressState, targetId, allBuildingIds);
-      applyDelta(delta);
+      store.dispatch({ type: 'visitBuilding', buildingId: targetId });
 
       const titleEl = buildingDialog.querySelector('#game-building-title');
       const roleEl = buildingDialog.querySelector('#game-building-role');
@@ -570,23 +567,23 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
   // Movement execution
   const doMove = (dir: string): void => {
     if (activeDialog) return;
-    const nextState = tryMove(playerState, dir);
-    if (nextState.x !== playerState.x || nextState.y !== playerState.y) {
-      playerState = nextState;
+    const nextState = tryMove(worldState(), dir);
+    if (nextState.x !== playerPos.x || nextState.y !== playerPos.y) {
+      playerPos = { x: nextState.x, y: nextState.y };
       walkFrame = (walkFrame + 1) % 2;
 
       // Check if stepped into Gate tile (10, 1) when gate is open
       if (
-        playerState.x === GATE_POSITION.x &&
-        playerState.y === GATE_POSITION.y &&
-        isGateOpen(playerState.xp ?? 0)
+        playerPos.x === GATE_POSITION.x &&
+        playerPos.y === GATE_POSITION.y &&
+        isGateOpen(progress().xp)
       ) {
         openModal(endingDialog);
         return;
       }
 
       // Check adjacent interactable and announce
-      const adjacentId = getAdjacentInteractable(playerState);
+      const adjacentId = getAdjacentInteractable(playerPos);
       if (adjacentId && adjacentId !== lastAnnouncedInteractable) {
         lastAnnouncedInteractable = adjacentId;
         if (adjacentId === 'board') {
@@ -595,7 +592,7 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
           announce('Near Mailbox. Press E to view contact info.');
         } else if (adjacentId === 'gate') {
           announce(
-            isGateOpen(playerState.xp ?? 0)
+            isGateOpen(progress().xp)
               ? 'Near Final Gate. Gate is open! Step through to finish.'
               : 'Near Final Gate. Gate is locked (100 XP required).',
           );
@@ -946,7 +943,7 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     {
       const gx = GATE_POSITION.x * TILE_SIZE;
       const gy = GATE_POSITION.y * TILE_SIZE;
-      const gateOpen = isGateOpen(playerState.xp ?? 0);
+      const gateOpen = isGateOpen(progress().xp);
 
       // Archway Pillars
       ctx.fillStyle = C_DARKEST;
@@ -975,8 +972,8 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
 
     // 6. Draw Player Sprite (2-frame walk cycle)
     {
-      const px = playerState.x * TILE_SIZE;
-      const py = playerState.y * TILE_SIZE;
+      const px = playerPos.x * TILE_SIZE;
+      const py = playerPos.y * TILE_SIZE;
 
       // Shadow
       ctx.fillStyle = C_DARK;
@@ -1014,10 +1011,10 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     }
 
     // 7. Draw "!" Speech Bubble when adjacent to an interactable
-    const adjacent = getAdjacentInteractable(playerState);
+    const adjacent = getAdjacentInteractable(playerPos);
     if (adjacent) {
-      const bx = playerState.x * TILE_SIZE + 9;
-      const by = playerState.y * TILE_SIZE - 16;
+      const bx = playerPos.x * TILE_SIZE + 9;
+      const by = playerPos.y * TILE_SIZE - 16;
 
       // Bubble background
       ctx.fillStyle = C_DARKEST;
@@ -1038,8 +1035,8 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
   animationFrameId = requestAnimationFrame(render);
 
   return {
-    getState: () => playerState,
-    getProgress: () => progressState,
+    getState: worldState,
+    getProgress: progress,
     move: doMove,
     interact,
     closeDialog: closeActiveDialog,
@@ -1048,8 +1045,8 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
       updateClassButtons();
     },
     getSelectedClass: () => selectedClass,
-    applyDelta: (delta: ProgressDelta) => applyDelta(delta),
     destroy: () => {
+      unsubscribe();
       if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       if (repeatTimer !== null) clearInterval(repeatTimer);
       window.removeEventListener('keydown', handleKeyDown);

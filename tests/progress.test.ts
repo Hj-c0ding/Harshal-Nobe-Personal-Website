@@ -3,6 +3,7 @@ import {
   checkKonamiCode,
   chooseClass,
   clearProgress,
+  computeXp,
   deserializeProgress,
   getLevel,
   INITIAL_PROGRESS_STATE,
@@ -24,6 +25,8 @@ import {
   XP_PER_CLASS,
   type ProgressState,
 } from '../src/lib/progress';
+import { createProgressStore } from '../src/lib/store';
+import { isGateOpen } from '../src/lib/world';
 
 describe('Progress Engine Unit Tests', () => {
   const allBuildings = [
@@ -159,17 +162,36 @@ describe('Progress Engine Unit Tests', () => {
   });
 
   it('XP never exceeds the max of 100', () => {
-    const state: ProgressState = {
-      ...INITIAL_PROGRESS_STATE,
-      xp: 95,
-    };
-    const delta = visitBuilding(state, 'stageX', allBuildings);
-    expect(delta.xpGained).toBe(5);
-    expect(delta.nextState.xp).toBe(MAX_XP);
+    let state = INITIAL_PROGRESS_STATE;
+    for (const bId of allBuildings) {
+      state = visitBuilding(state, bId, allBuildings).nextState;
+    }
+    for (const cId of ['data', 'fullstack', 'leadership', 'cloud']) {
+      state = chooseClass(state, cId).nextState;
+    }
+    state = openMailbox(state).nextState;
+    expect(state.xp).toBe(MAX_XP);
 
-    const deltaOver = visitBuilding(delta.nextState, 'stageY', allBuildings);
+    const deltaOver = visitBuilding(state, 'extra-building', allBuildings);
     expect(deltaOver.xpGained).toBe(0);
     expect(deltaOver.nextState.xp).toBe(MAX_XP);
+
+    const oversizedState = {
+      visitedBuildings: [
+        'idx-exchange',
+        'illinois-state',
+        'fynder',
+        'backline',
+        'fbla',
+        'tsa',
+        'aws-ccp',
+        'extra-1',
+        'extra-2',
+      ],
+      chosenClasses: ['data', 'fullstack', 'leadership', 'cloud'],
+      mailboxOpened: true,
+    };
+    expect(computeXp(oversizedState)).toBe(100);
   });
 
   it('Completionist unlocks only after every building (all 7) is visited', () => {
@@ -238,7 +260,7 @@ describe('Progress Engine Unit Tests', () => {
 
   it('serialize/deserialize round-trip', () => {
     const state: ProgressState = {
-      xp: 45,
+      xp: 25,
       visitedBuildings: ['idx-exchange', 'illinois-state'],
       openedStages: ['idx-exchange', 'illinois-state'],
       chosenClasses: ['data'],
@@ -254,25 +276,28 @@ describe('Progress Engine Unit Tests', () => {
   });
 
   it('corrupt JSON, wrong types, and unknown achievement IDs fall back to a fresh state without throwing', () => {
+    expect(() => deserializeProgress('invalid json {{{')).not.toThrow();
     expect(deserializeProgress('invalid json {{{')).toEqual(INITIAL_PROGRESS_STATE);
+    expect(() => deserializeProgress(null)).not.toThrow();
     expect(deserializeProgress(null)).toEqual(INITIAL_PROGRESS_STATE);
+    expect(() => deserializeProgress('42')).not.toThrow();
     expect(deserializeProgress('42')).toEqual(INITIAL_PROGRESS_STATE);
+    expect(() => deserializeProgress('{"xp": "lots"}')).not.toThrow();
     expect(deserializeProgress('{"xp": "lots"}')).toEqual({
       ...INITIAL_PROGRESS_STATE,
       xp: 0,
     });
-    expect(
-      deserializeProgress(
-        JSON.stringify({
-          xp: 150,
-          achievements: ['fake-achievement', 'first-steps'],
-          visitedBuildings: ['b1', 123],
-        }),
-      ),
-    ).toEqual({
-      xp: 100,
-      visitedBuildings: ['b1'],
-      openedStages: ['b1'],
+    const corrupted = deserializeProgress(
+      JSON.stringify({
+        xp: 150,
+        achievements: ['fake-achievement', 'first-steps'],
+        visitedBuildings: ['b1', 123],
+      }),
+    );
+    expect(corrupted).toEqual({
+      xp: 0,
+      visitedBuildings: [],
+      openedStages: [],
       chosenClasses: [],
       usedLenses: [],
       mailboxOpened: false,
@@ -280,6 +305,9 @@ describe('Progress Engine Unit Tests', () => {
       searchUsed: false,
       achievements: ['first-steps'],
     });
+    expect(Number.isFinite(corrupted.xp)).toBe(true);
+    expect(corrupted.xp).toBeGreaterThanOrEqual(0);
+    expect(corrupted.xp).toBeLessThanOrEqual(100);
   });
 
   it('reset / clear returns the initial state', () => {
@@ -300,9 +328,9 @@ describe('Progress Engine Unit Tests', () => {
     };
 
     const state: ProgressState = {
-      xp: 35,
-      visitedBuildings: ['s1'],
-      openedStages: ['s1'],
+      xp: 25,
+      visitedBuildings: ['idx-exchange'],
+      openedStages: ['idx-exchange'],
       chosenClasses: ['data'],
       usedLenses: ['data'],
       mailboxOpened: true,
@@ -337,5 +365,110 @@ describe('Progress Engine Unit Tests', () => {
     const d4 = useSearch(d3.nextState);
     expect(d4.xpGained).toBe(0);
     expect(d4.nextState.searchUsed).toBe(true);
+  });
+
+  it('deserializing save with stale 95 xp but all objectives completed heals to 100 xp and opens gate', () => {
+    const raw = JSON.stringify({
+      xp: 95,
+      visitedBuildings: [
+        'illinois-state',
+        'idx-exchange',
+        'fynder',
+        'aws-ccp',
+        'fbla',
+        'backline',
+        'tsa',
+      ],
+      chosenClasses: ['fullstack', 'cloud', 'leadership', 'data'],
+      mailboxOpened: true,
+      contactOpened: true,
+      searchUsed: false,
+    });
+    const state = deserializeProgress(raw);
+    expect(state.xp).toBe(100);
+    expect(isGateOpen(state.xp)).toBe(true);
+  });
+
+  it('xp equals computeXp(state) after every action', () => {
+    let state = INITIAL_PROGRESS_STATE;
+    expect(state.xp).toBe(computeXp(state));
+
+    const d1 = visitBuilding(state, 'idx-exchange', allBuildings);
+    expect(d1.nextState.xp).toBe(computeXp(d1.nextState));
+    state = d1.nextState;
+
+    const d1Repeat = visitBuilding(state, 'idx-exchange', allBuildings);
+    expect(d1Repeat.nextState.xp).toBe(computeXp(d1Repeat.nextState));
+    state = d1Repeat.nextState;
+
+    const d2 = chooseClass(state, 'data');
+    expect(d2.nextState.xp).toBe(computeXp(d2.nextState));
+    state = d2.nextState;
+
+    const d2Repeat = chooseClass(state, 'data');
+    expect(d2Repeat.nextState.xp).toBe(computeXp(d2Repeat.nextState));
+    state = d2Repeat.nextState;
+
+    const d2All = chooseClass(state, 'all');
+    expect(d2All.nextState.xp).toBe(computeXp(d2All.nextState));
+    state = d2All.nextState;
+
+    const d3 = openMailbox(state);
+    expect(d3.nextState.xp).toBe(computeXp(d3.nextState));
+    state = d3.nextState;
+
+    const d3Repeat = openMailbox(state);
+    expect(d3Repeat.nextState.xp).toBe(computeXp(d3Repeat.nextState));
+    state = d3Repeat.nextState;
+
+    const d4 = useSearch(state);
+    expect(d4.nextState.xp).toBe(computeXp(d4.nextState));
+    state = d4.nextState;
+
+    const d5 = unlockKonami(state);
+    expect(d5.nextState.xp).toBe(computeXp(d5.nextState));
+  });
+
+  it('after store.reset(), one building visit gives exactly +10', () => {
+    const store = createProgressStore();
+    store.dispatch({ type: 'visitBuilding', buildingId: 'idx-exchange' });
+    store.dispatch({ type: 'chooseClass', classId: 'data' });
+    expect(store.getState().xp).toBe(15);
+
+    store.reset();
+    expect(store.getState().xp).toBe(0);
+
+    const delta = store.dispatch({ type: 'visitBuilding', buildingId: 'idx-exchange' });
+    expect(delta.xpGained).toBe(10);
+    expect(store.getState().xp).toBe(10);
+  });
+
+  it('mailbox gives +10 from both game mode and reader mode', () => {
+    const directMailbox = openMailbox(INITIAL_PROGRESS_STATE);
+    expect(directMailbox.xpGained).toBe(10);
+    expect(directMailbox.nextState.xp).toBe(10);
+
+    const directContact = openContact(INITIAL_PROGRESS_STATE);
+    expect(directContact.xpGained).toBe(10);
+    expect(directContact.nextState.xp).toBe(10);
+
+    const store1 = createProgressStore();
+    const dGame = store1.dispatch({ type: 'openMailbox' });
+    expect(dGame.xpGained).toBe(10);
+    expect(store1.getState().xp).toBe(10);
+    expect(store1.getState().mailboxOpened).toBe(true);
+    expect(store1.getState().contactOpened).toBe(true);
+
+    const dReaderRepeat = openContact(store1.getState());
+    expect(dReaderRepeat.xpGained).toBe(0);
+
+    const store2 = createProgressStore();
+    const dReader = store2.dispatch({ type: 'openMailbox' });
+    expect(dReader.xpGained).toBe(10);
+    expect(store2.getState().xp).toBe(10);
+
+    const dGameRepeat = store2.dispatch({ type: 'openMailbox' });
+    expect(dGameRepeat.xpGained).toBe(0);
+    expect(store2.getState().xp).toBe(10);
   });
 });
