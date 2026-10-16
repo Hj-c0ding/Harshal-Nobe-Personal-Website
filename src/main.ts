@@ -52,18 +52,21 @@ const lensesHandle = root
         const current = hud.getState();
         const delta = openStage(current, stageId, allStageIds);
         hud.applyDelta(delta);
+        gameHandle?.applyDelta(delta);
       },
       onLensUse: (lensId: string) => {
         if (!hud) return;
         const current = hud.getState();
         const delta = useLens(current, lensId);
         hud.applyDelta(delta);
+        gameHandle?.applyDelta(delta);
       },
       onSearchUse: () => {
         if (!hud) return;
         const current = hud.getState();
         const delta = useSearch(current);
         hud.applyDelta(delta);
+        gameHandle?.applyDelta(delta);
       },
     })
   : null;
@@ -75,6 +78,7 @@ if (contactSection && hud) {
     const current = hud.getState();
     const delta = openContact(current);
     hud.applyDelta(delta);
+    gameHandle?.applyDelta(delta);
   };
 
   // Trigger on click, focusin, or scroll into view
@@ -106,6 +110,7 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
       const current = hud.getState();
       const delta = unlockKonami(current);
       hud.applyDelta(delta);
+      gameHandle?.applyDelta(delta);
     }
   }
 });

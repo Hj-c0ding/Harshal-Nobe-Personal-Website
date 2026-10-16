@@ -46,6 +46,8 @@ export interface GameHandle {
   interact(): void;
   closeDialog(): void;
   setSelectedClass(classId: LensId | 'all' | null): void;
+  getSelectedClass(): LensId | 'all' | null;
+  applyDelta(delta: ProgressDelta): void;
   destroy(): void;
 }
 
@@ -439,25 +441,66 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     .querySelector('#game-mailbox-close')
     ?.addEventListener('click', () => closeModal(mailboxDialog));
 
-  // Class Board button clicks
-  boardDialog.querySelectorAll<HTMLButtonElement>('.class-pick-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const cls = btn.getAttribute('data-class') as LensId | 'all';
-      if (cls) {
-        selectedClass = cls === 'all' ? 'all' : cls;
-        if (cls !== 'all') {
-          const delta = chooseClass(progressState, cls);
+  // Dynamic Class Board Buttons
+  const classPickerEl = boardDialog.querySelector('.dialog-class-picker');
+  const classDefs: ReadonlyArray<{ id: LensId | 'all'; label: string }> = [
+    { id: 'data', label: 'Data & ML' },
+    { id: 'fullstack', label: 'Full-stack' },
+    { id: 'leadership', label: 'Leadership' },
+    { id: 'cloud', label: 'Cloud' },
+    { id: 'all', label: 'All (Show All)' },
+  ];
+
+  const classButtons: HTMLButtonElement[] = [];
+
+  if (classPickerEl) {
+    classPickerEl.innerHTML = '';
+    for (const def of classDefs) {
+      const btn = doc.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hud-btn class-pick-btn';
+      btn.setAttribute('data-class', def.id);
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        selectedClass = def.id;
+        if (def.id !== 'all') {
+          const delta = chooseClass(progressState, def.id);
           applyDelta(delta);
         }
-        closeModal(boardDialog);
+        updateClassButtons();
         announce(
-          cls === 'all'
+          def.id === 'all'
             ? 'Class filter reset: showing all facilities.'
-            : `Class selected: ${btn.textContent?.trim()}. Matching facilities highlighted!`,
+            : `Class selected: ${def.label}. Matching facilities highlighted!`,
         );
-      }
-    });
-  });
+      });
+
+      classButtons.push(btn);
+      classPickerEl.append(btn);
+    }
+  }
+
+  const updateClassButtons = (): void => {
+    for (const btn of classButtons) {
+      const cls = btn.getAttribute('data-class');
+      const def = classDefs.find((d) => d.id === cls);
+      if (!def) continue;
+
+      const isCurrent =
+        (def.id === 'all' && (selectedClass === 'all' || !selectedClass)) ||
+        selectedClass === def.id;
+
+      btn.className = `hud-btn class-pick-btn ${isCurrent ? 'is-selected' : ''}`;
+      btn.setAttribute('aria-pressed', isCurrent ? 'true' : 'false');
+      btn.innerHTML = `
+        <span class="class-btn-name">${def.label}</span>
+        ${isCurrent ? '<span class="class-btn-status">[Selected]</span>' : ''}
+      `;
+    }
+  };
+
+  updateClassButtons();
 
   // Action / Interaction Trigger
   const interact = (): void => {
@@ -467,6 +510,7 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     if (!targetId) return;
 
     if (targetId === 'board') {
+      updateClassButtons();
       openModal(boardDialog);
       return;
     }
@@ -1001,7 +1045,10 @@ export function mountGame(container: HTMLElement, options: GameOptions = {}): Ga
     closeDialog: closeActiveDialog,
     setSelectedClass: (cls) => {
       selectedClass = cls;
+      updateClassButtons();
     },
+    getSelectedClass: () => selectedClass,
+    applyDelta: (delta: ProgressDelta) => applyDelta(delta),
     destroy: () => {
       if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       if (repeatTimer !== null) clearInterval(repeatTimer);
