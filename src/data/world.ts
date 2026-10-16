@@ -31,14 +31,14 @@ export const MAP_HEIGHT = 14;
 export const MAP_ASCII: readonly string[] = [
   '####################', // y = 0
   '#TTTTTT###G###TTTTT#', // y = 1 (Gate at 10, 1)
-  '#BBB..~~..=...~~.BBB#', // y = 2 (IDX left, ISU right)
-  '#BDB..~~..=...~~.BDB#', // y = 3 (IDX door 2,3; ISU door 17,3)
+  '#BBB..~~..=...~~BBB#', // y = 2 (IDX left, ISU right)
+  '#BDB..~~..=...~~BDB#', // y = 3 (IDX door 2,3; ISU door 17,3)
   '#==================#', // y = 4 (North walkway)
-  '#..T...S..=..M...T..#', // y = 5 (Board 7,5; Mailbox 12,5)
-  '#BBB......=......BBB#', // y = 6 (Fynder left, Backline right; Spawn 10,6)
-  '#BDB......=......BDB#', // y = 7 (Fynder door 2,7; Backline door 17,7)
+  '#..T...S..=.M...T..#', // y = 5 (Board 7,5; Mailbox 12,5)
+  '#BBB......=.....BBB#', // y = 6 (Fynder left, Backline right; Spawn 10,6)
+  '#BDB......=.....BDB#', // y = 7 (Fynder door 2,7; Backline door 17,7)
   '#==================#', // y = 8 (Mid-south walkway)
-  '#..=......=......=..#', // y = 9 (Walkway connectors)
+  '#..=......=......=.#', // y = 9 (Walkway connectors)
   '#BDB.....DB.....BDB#', // y = 10 (FBLA door 2,10; AWS door 9,10; TSA door 17,10)
   '#BBB.....BB.....BBB#', // y = 11
   '#TTT.....TT.....TTT#', // y = 12

@@ -4,6 +4,7 @@ import {
   BUILDINGS,
   GATE_POSITION,
   MAILBOX_POSITION,
+  MAP_ASCII,
   MAP_HEIGHT,
   MAP_WIDTH,
   SPAWN_POSITION,
@@ -265,5 +266,84 @@ describe('World Logic and Navigation Tests', () => {
         expect(y).toBeGreaterThan(0);
       }
     }
+  });
+
+  it('MAP_ASCII layout and coordinates consistency test', () => {
+    // Exactly MAP_HEIGHT rows
+    expect(MAP_ASCII).toHaveLength(MAP_HEIGHT);
+
+    // Every row has exactly MAP_WIDTH characters
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      const row = MAP_ASCII[y];
+      expect(row, `Row y=${y} must have exactly ${MAP_WIDTH} characters`).toBeDefined();
+      if (row) {
+        expect(row).toHaveLength(MAP_WIDTH);
+      }
+    }
+
+    // Every border tile is solid '#'
+    for (let x = 0; x < MAP_WIDTH; x++) {
+      expect(MAP_ASCII[0]?.[x], `Top border at (${x}, 0) must be '#'`).toBe('#');
+      expect(
+        MAP_ASCII[MAP_HEIGHT - 1]?.[x],
+        `Bottom border at (${x}, ${MAP_HEIGHT - 1}) must be '#'`,
+      ).toBe('#');
+    }
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      expect(MAP_ASCII[y]?.[0], `Left border at (0, ${y}) must be '#'`).toBe('#');
+      expect(
+        MAP_ASCII[y]?.[MAP_WIDTH - 1],
+        `Right border at (${MAP_WIDTH - 1}, ${y}) must be '#'`,
+      ).toBe('#');
+    }
+
+    // Every building's tiles are 'B' or 'D' in the ASCII, and its door tile is 'D'
+    for (const b of BUILDINGS) {
+      for (const t of b.tiles) {
+        const char = MAP_ASCII[t.y]?.[t.x];
+        expect(
+          char === 'B' || char === 'D',
+          `Building ${b.name} tile at (${t.x}, ${t.y}) must be 'B' or 'D' but found '${char}'`,
+        ).toBe(true);
+      }
+      const doorChar = MAP_ASCII[b.door.y]?.[b.door.x];
+      expect(
+        doorChar,
+        `Building ${b.name} door at (${b.door.x}, ${b.door.y}) must be 'D'`,
+      ).toBe('D');
+    }
+
+    // The ASCII has 'S' at BOARD_POSITION, 'M' at MAILBOX_POSITION, 'G' at GATE_POSITION
+    expect(MAP_ASCII[BOARD_POSITION.y]?.[BOARD_POSITION.x]).toBe('S');
+    expect(MAP_ASCII[MAILBOX_POSITION.y]?.[MAILBOX_POSITION.x]).toBe('M');
+    expect(MAP_ASCII[GATE_POSITION.y]?.[GATE_POSITION.x]).toBe('G');
+
+    // Spawn tile is walkable
+    const spawnChar = MAP_ASCII[SPAWN_POSITION.y]?.[SPAWN_POSITION.x];
+    expect(
+      spawnChar === '.' || spawnChar === '=',
+      `Spawn tile at (${SPAWN_POSITION.x}, ${SPAWN_POSITION.y}) must be '.' or '=' but found '${spawnChar}'`,
+    ).toBe(true);
+
+    // The ASCII contains exactly 7 'D' tiles, one 'S', one 'M', one 'G'
+    let countD = 0;
+    let countS = 0;
+    let countM = 0;
+    let countG = 0;
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      const row = MAP_ASCII[y];
+      if (!row) continue;
+      for (let x = 0; x < MAP_WIDTH; x++) {
+        const c = row[x];
+        if (c === 'D') countD++;
+        if (c === 'S') countS++;
+        if (c === 'M') countM++;
+        if (c === 'G') countG++;
+      }
+    }
+    expect(countD).toBe(7);
+    expect(countS).toBe(1);
+    expect(countM).toBe(1);
+    expect(countG).toBe(1);
   });
 });
